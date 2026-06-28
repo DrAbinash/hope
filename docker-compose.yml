@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: hospital_erp_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-hospital_erp}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - erp_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-hospital_erp}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: hospital_erp_app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-5000}:5000"
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-hospital_erp}
+      - PORT=5000
+      - HOST=0.0.0.0
+      - SERVE_STATIC_DIR=/app/artifacts/hms/dist
+      - SESSION_SECRET=${SESSION_SECRET}
+    volumes:
+      # Map uploads and reports to persistent NAS volumes
+      - uploads_data:/app/uploads
+      - reports_data:/app/reports
+    networks:
+      - erp_network
+
+volumes:
+  pgdata:
+  uploads_data:
+  reports_data:
+
+networks:
+  erp_network:
+
