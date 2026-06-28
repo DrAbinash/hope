@@ -1,56 +1,68 @@
-FROM node:22-alpine AS builder
+# ============================================================
+# Stage 1: Builder
+# Uses node:22-slim (Debian/glibc) because pnpm-workspace.yaml
+# excludes musl-based native binaries (rollup, tailwindcss/oxide,
+# lightningcss). Alpine (musl) would break the Vite/Rollup build.
+# ============================================================
+FROM node:22-slim AS builder
 
-# Install pnpm
 RUN npm install -g pnpm@10
 
 WORKDIR /app
 
-# Copy root configurations
+# Copy workspace manifests first (layer cache: only re-installs deps when these change)
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY tsconfig.json tsconfig.base.json ./
 
-# Copy directories
+# Copy only production source packages (exclude mockup-sandbox — not in artifacts/ anyway)
 COPY artifacts ./artifacts
 COPY lib ./lib
 COPY scripts ./scripts
 
-# Install dependencies (ignoring scripts if necessary, but we might need them)
 RUN pnpm install --frozen-lockfile
 
-# Build the project (frontend and backend)
-RUN pnpm -r --if-present run build
+# Build production packages only: hms (Vite) and api-server (esbuild)
+# --if-present skips packages that have no "build" script (lib/db, scripts, etc.)
+RUN pnpm -r --filter "@workspace/hms" --filter "@workspace/api-server" --if-present run build
 
-# Prune dev dependencies
-RUN pnpm store prune
-
-# Production image
+# ============================================================
+# Stage 2: Production runtime
+# Uses node:22-alpine for a smaller final image.
+# No native build tools needed here — JS is already compiled.
+# ============================================================
 FROM node:22-alpine
 
 RUN npm install -g pnpm@10
 
 WORKDIR /app
 
-# We only need the built artifacts and production dependencies
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/pnpm-workspace.yaml ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/artifacts ./artifacts
-COPY --from=builder /app/lib ./lib
-COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/pnpm-lock.yaml ./
 
-# Expose the API port
-# Create uploads and reports directories and set ownership to node
+# Copy only what the runtime needs:
+#   - artifacts/api-server/dist  (compiled backend)
+#   - artifacts/hms/dist         (compiled frontend, served as static files)
+#   - lib/                       (shared packages imported by api-server at runtime via tsx/node)
+COPY --from=builder /app/artifacts/api-server ./artifacts/api-server
+COPY --from=builder /app/artifacts/hms/dist ./artifacts/hms/dist
+COPY --from=builder /app/lib ./lib
+COPY --from=builder /app/node_modules ./node_modules
+
+# Persistent storage mount points
 RUN mkdir -p /app/uploads /app/reports && chown -R node:node /app
 
 USER node
 
 EXPOSE 5000
 
-# Set production environment and static dir for the backend
 ENV NODE_ENV=production
 ENV PORT=5000
 ENV HOST=0.0.0.0
 ENV SERVE_STATIC_DIR=/app/artifacts/hms/dist
 
-# Start the API server
+# Health check — hits the /api/health endpoint (requires the route to exist; falls back gracefully)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD wget -qO- http://localhost:5000/api/health || exit 1
+
 CMD ["pnpm", "--filter", "@workspace/api-server", "run", "start"]

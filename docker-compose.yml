@@ -1,10 +1,14 @@
-version: '3.8'
+# Hope NeuroTrauma & MultiSpeciality Hospital ERP
+# Docker Compose — Synology Container Manager compatible
+# Import this file in Container Manager > Project > Create
 
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: hospital_erp_db
+    container_name: hope_hospital_db
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
@@ -20,34 +24,47 @@ services:
       retries: 5
 
   app:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile
-    container_name: hospital_erp_app
+    image: hope_hospital_app:latest
+    container_name: hope_hospital_app
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
     ports:
       - "${APP_PORT:-5000}:5000"
+    env_file:
+      - .env
     environment:
       - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-hospital_erp}
       - PORT=5000
       - HOST=0.0.0.0
+      - NODE_ENV=production
       - SERVE_STATIC_DIR=/app/artifacts/hms/dist
       - SESSION_SECRET=${SESSION_SECRET}
     volumes:
-      # Map uploads and reports to persistent NAS volumes
+      # Persistent storage — mapped to named Docker volumes on Synology
       - uploads_data:/app/uploads
       - reports_data:/app/reports
     networks:
       - erp_network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
 
 volumes:
   pgdata:
+    driver: local
   uploads_data:
+    driver: local
   reports_data:
+    driver: local
 
 networks:
   erp_network:
-
+    driver: bridge

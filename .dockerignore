@@ -1,0 +1,57 @@
+# ============================================================
+# .dockerignore — Hope Hospital ERP
+# Excludes files from the Docker build context.
+# Smaller context = faster builds and no secret leakage.
+# ============================================================
+
+# Secrets — must never enter the image
+.env
+.env.*
+!.env.example
+
+# Node dependencies (reinstalled inside the builder stage)
+node_modules
+**/node_modules
+
+# Build outputs (rebuilt inside builder stage)
+artifacts/hms/dist
+artifacts/api-server/dist
+**/dist
+
+# pnpm store cache
+.pnpm-store
+**/.pnpm-store
+
+# Logs
+*.log
+logs/
+**/logs/
+
+# Local backup files
+backup_pre_*
+*.sql
+*.sql.gz
+*.dump
+
+# Editor / OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Git metadata (not needed in image)
+.git
+.gitignore
+
+# Documentation (not needed at runtime)
+*.md
+
+# Antigravity / Replit scratch folders (legacy artifacts, not needed)
+.gemini/
+antigravity/
+
+# Temporary files
+*.tmp
+*.bak
+.cache/
+tmp/
