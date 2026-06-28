@@ -88,6 +88,9 @@ export default function OPDDetail() {
   const [aiGenerated, setAiGenerated] = useState(false);
   const [aiDraftOriginalValues, setAiDraftOriginalValues] = useState<any>(null);
   const [safetyWarnings, setSafetyWarnings] = useState<string[]>([]);
+  // favorites must be declared here (before any early returns) to satisfy Rules of Hooks.
+  // favsKey uses optional chaining so it is safe to compute before visit/user are loaded.
+  const [favorites, setFavorites] = useState<any[]>([]);
 
   const { data: visit, isLoading } = useGetOpdVisit(id);
   const { data: beds } = useListBeds({ status: "available" });
@@ -306,7 +309,6 @@ export default function OPDDetail() {
     return t.name?.toLowerCase().includes(q) || t.diagnosis?.toLowerCase().includes(q);
   });
   const favsKey = user?.id ? `doctor_favorites_${user.id}` : visit?.doctorId ? `doctor_favorites_${visit.doctorId}` : `doctor_favorites_guest`;
-  const [favorites, setFavorites] = useState<any[]>([]);
 
   useEffect(() => {
     try {

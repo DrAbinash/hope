@@ -72,6 +72,15 @@ export const MODULE_CATALOG: ModuleGroup[] = [
       { key: "/pharmacy/ndps-register", label: "NDPS Register" },
       { key: "/pharmacy/shift-closing", label: "Shift Closing" },
       { key: "/pharmacy/audit-log", label: "Pharmacy Audit Log" },
+      // These 7 were missing from the catalog (causing canAccess to return true for ALL roles).
+      // Now properly catalogued so they can be assigned/revoked per role via the permissions UI.
+      { key: "/pharmacy/barcode-scan", label: "Barcode Scanner" },
+      { key: "/pharmacy/pmjay-claims", label: "PMJAY Claims" },
+      { key: "/pharmacy/drug-licences", label: "Drug Licences" },
+      { key: "/pharmacy/consignment-stock", label: "Consignment Stock" },
+      { key: "/pharmacy/abc-ved-fsn", label: "ABC / VED / FSN Analysis" },
+      { key: "/pharmacy/vendor-schemes", label: "Vendor Schemes" },
+      { key: "/pharmacy/kpi-scorecard", label: "Pharmacy KPI Scorecard" },
       { key: "/inventory", label: "Inventory" },
       { key: "/indents", label: "Hospital Indents" },
       { key: "/vendors", label: "Vendors" },

@@ -1,5 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import rateLimit from "express-rate-limit";
+import bcrypt from "bcryptjs";
 import { db } from "@workspace/db";
 import { employeesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -22,7 +23,7 @@ const loginLimiter = rateLimit({
 
 router.post("/auth/login", loginLimiter, async (req, res) => {
   try {
-    const { username } = req.body;
+    const { username, pin } = req.body;
     if (!username) {
       res.status(400).json({ error: "Username required" });
       return;
@@ -30,11 +31,31 @@ router.post("/auth/login", loginLimiter, async (req, res) => {
 
     const [user] = await db.select().from(employeesTable).where(eq(employeesTable.username, username));
     if (!user || !user.isActive) {
+      // Constant-time delay even on not-found to prevent user enumeration
+      await new Promise((r) => setTimeout(r, 300));
       res.status(401).json({ error: "Invalid credentials" });
       return;
     }
 
-    // DEV MODE: password check disabled — login by username only.
+    // PIN verification.
+    // If the account has a pinHash set, the provided PIN must match.
+    // If pinHash is null (account not yet secured), login is allowed but a
+    // warning is emitted. Admins should set PINs for all accounts via the
+    // Employee settings page.
+    if (user.pinHash) {
+      if (!pin) {
+        res.status(401).json({ error: "PIN required" });
+        return;
+      }
+      const pinOk = await bcrypt.compare(String(pin), user.pinHash);
+      if (!pinOk) {
+        res.status(401).json({ error: "Invalid credentials" });
+        return;
+      }
+    } else {
+      req.log.warn({ userId: user.id, username: user.username }, "Login without PIN — account has no PIN set");
+    }
+
     req.session.userId = user.id;
     req.session.username = user.username || undefined;
     req.session.role = user.role;

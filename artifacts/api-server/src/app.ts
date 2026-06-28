@@ -27,7 +27,25 @@ app.use(
     },
   }),
 );
-app.use(cors({ origin: true, credentials: true }));
+// CORS: allow only explicitly configured origins.
+// ALLOWED_ORIGINS is a comma-separated list, e.g. "http://192.168.1.100:5000,https://hms.hospital.lan"
+// Defaults to same-origin only (no cross-origin requests) when not set.
+const rawOrigins = process.env.ALLOWED_ORIGINS;
+const allowedOrigins = rawOrigins
+  ? rawOrigins.split(",").map((o) => o.trim()).filter(Boolean)
+  : [];
+app.use(
+  cors({
+    origin: allowedOrigins.length > 0
+      ? (origin, cb) => {
+          // Allow requests with no Origin (server-to-server, curl) and listed origins
+          if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+          cb(new Error(`CORS: origin '${origin}' not allowed`));
+        }
+      : false,
+    credentials: true,
+  }),
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(sessionMiddleware);

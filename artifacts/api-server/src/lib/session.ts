@@ -3,13 +3,23 @@ import connectPgSimple from "connect-pg-simple";
 
 const PgStore = connectPgSimple(session);
 
+const SESSION_SECRET = process.env.SESSION_SECRET;
+if (!SESSION_SECRET) {
+  // Fail fast at startup — a missing secret means all sessions are forgeable.
+  // Set SESSION_SECRET in your .env file (minimum 32 random characters).
+  throw new Error(
+    "FATAL: SESSION_SECRET environment variable is not set. " +
+    "Set it in your .env file before starting the server."
+  );
+}
+
 export const sessionMiddleware = session({
   store: new PgStore({
     conString: process.env.DATABASE_URL,
     tableName: "user_sessions",
     createTableIfMissing: false,
   }),
-  secret: process.env.SESSION_SECRET || "dev-secret-change-me",
+  secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: {
