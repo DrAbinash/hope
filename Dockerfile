@@ -49,6 +49,10 @@ COPY --from=builder /app/artifacts/hms/dist ./artifacts/hms/dist
 COPY --from=builder /app/lib ./lib
 COPY --from=builder /app/node_modules ./node_modules
 
+# Entrypoint: runs db push then starts the server
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
+
 # Persistent storage mount points
 RUN mkdir -p /app/uploads /app/reports && chown -R node:node /app
 
@@ -65,4 +69,4 @@ ENV SERVE_STATIC_DIR=/app/artifacts/hms/dist
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
   CMD wget -qO- http://localhost:5000/api/health || exit 1
 
-CMD ["pnpm", "--filter", "@workspace/api-server", "run", "start"]
+CMD ["/app/docker-entrypoint.sh"]
