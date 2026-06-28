@@ -1,14 +1,21 @@
 import { defineConfig } from "drizzle-kit";
-import path from "path";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL, ensure the database is provisioned");
+// DATABASE_URL is required for migrate/push/studio but NOT for generate.
+// Warn instead of throwing so `drizzle-kit generate` works without a live DB.
+const dbUrl = process.env.DATABASE_URL;
+if (!dbUrl) {
+  console.warn("Warning: DATABASE_URL is not set. Commands that require a database connection (migrate, push, studio) will fail.");
 }
 
 export default defineConfig({
   schema: "./src/schema/index.ts",
+  out: "./migrations",
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL,
+    url: dbUrl ?? "postgresql://localhost/placeholder",
+  },
+  migrations: {
+    table: "drizzle_migrations",
+    schema: "public",
   },
 });

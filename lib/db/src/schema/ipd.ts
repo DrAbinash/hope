@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, boolean, timestamp, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { patientsTable } from "./patients";
@@ -23,7 +23,13 @@ export const ipdAdmissionsTable = pgTable("ipd_admissions", {
   dischargeSummary: text("discharge_summary"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("idx_ipd_admissions_patient_id").on(table.patientId),
+  index("idx_ipd_admissions_entity_id").on(table.entityId),
+  index("idx_ipd_admissions_status").on(table.status),
+  index("idx_ipd_admissions_consultant").on(table.consultantDoctorId),
+  index("idx_ipd_admissions_admission_date").on(table.admissionDate),
+]);
 
 export const admissionConversionLogTable = pgTable("admission_conversion_log", {
   id: serial("id").primaryKey(),
@@ -33,7 +39,10 @@ export const admissionConversionLogTable = pgTable("admission_conversion_log", {
   convertedAt: timestamp("converted_at").defaultNow().notNull(),
   convertedBy: text("converted_by"),
   notes: text("notes"),
-});
+}, (table) => [
+  index("idx_conversion_log_patient_id").on(table.patientId),
+  index("idx_conversion_log_opd_visit").on(table.opdVisitId),
+]);
 
 export const insertIpdAdmissionSchema = createInsertSchema(ipdAdmissionsTable).omit({ id: true, ipdNo: true, createdAt: true, updatedAt: true });
 export type InsertIpdAdmission = z.infer<typeof insertIpdAdmissionSchema>;

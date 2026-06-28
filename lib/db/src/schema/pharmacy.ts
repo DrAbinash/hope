@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, numeric, jsonb, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, numeric, jsonb, timestamp, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { patientsTable } from "./patients";
@@ -46,7 +46,14 @@ export const medicinesTable = pgTable("medicines", {
   damagedStock: integer("damaged_stock").default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("idx_medicines_entity_id").on(table.entityId),
+  index("idx_medicines_name").on(table.name),
+  index("idx_medicines_barcode").on(table.barcode),
+  index("idx_medicines_expiry_date").on(table.expiryDate),
+  index("idx_medicines_schedule_type").on(table.scheduleType),
+  index("idx_medicines_generic_name").on(table.genericName),
+]);
 
 export const medicineBatchesTable = pgTable("medicine_batches", {
   id: serial("id").primaryKey(),
@@ -61,7 +68,12 @@ export const medicineBatchesTable = pgTable("medicine_batches", {
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("idx_medicine_batches_medicine_id").on(table.medicineId),
+  index("idx_medicine_batches_entity_id").on(table.entityId),
+  index("idx_medicine_batches_expiry_date").on(table.expiryDate),
+  index("idx_medicine_batches_is_active").on(table.isActive),
+]);
 
 export const stockMovementsTable = pgTable("stock_movements", {
   id: serial("id").primaryKey(),
@@ -77,7 +89,12 @@ export const stockMovementsTable = pgTable("stock_movements", {
   reason: text("reason"),
   userId: integer("user_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("idx_stock_movements_medicine_id").on(table.medicineId),
+  index("idx_stock_movements_entity_id").on(table.entityId),
+  index("idx_stock_movements_created_at").on(table.createdAt),
+  index("idx_stock_movements_movement_type").on(table.movementType),
+]);
 
 export const pharmacyAuditLogTable = pgTable("pharmacy_audit_log", {
   id: serial("id").primaryKey(),
@@ -179,7 +196,14 @@ export const pharmacySalesTable = pgTable("pharmacy_sales", {
   finalizedAt: timestamp("finalized_at"),
   finalizedBy: integer("finalized_by"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("idx_pharmacy_sales_entity_id").on(table.entityId),
+  index("idx_pharmacy_sales_patient_id").on(table.patientId),
+  index("idx_pharmacy_sales_bill_date").on(table.billDate),
+  index("idx_pharmacy_sales_ipd_admission").on(table.ipdAdmissionId),
+  index("idx_pharmacy_sales_shift_id").on(table.shiftId),
+  index("idx_pharmacy_sales_created_at").on(table.createdAt),
+]);
 
 export const indentsTable = pgTable("indents", {
   id: serial("id").primaryKey(),
