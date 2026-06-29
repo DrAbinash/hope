@@ -26,13 +26,6 @@ RUN pnpm install --frozen-lockfile
 # --if-present skips packages that have no "build" script (lib/db, scripts, etc.)
 RUN pnpm -r --filter "@workspace/hms" --filter "@workspace/api-server" --if-present run build
 
-# Bundle startup.mjs with all deps inlined — avoids pnpm symlink issues in Alpine runtime
-RUN artifacts/api-server/node_modules/.bin/esbuild startup.mjs \
-      --bundle \
-      --platform=node \
-      --format=cjs \
-      --outfile=startup.bundle.cjs
-
 # ============================================================
 # Stage 2: Production runtime
 # Uses node:22-alpine for a smaller final image.
@@ -52,14 +45,12 @@ COPY --from=builder /app/pnpm-lock.yaml ./
 #   - artifacts/api-server/dist  (compiled backend)
 #   - artifacts/hms/dist         (compiled frontend, served as static files)
 #   - lib/                       (shared packages imported by api-server at runtime via tsx/node)
+#   - startup.mjs                (runs as ES module directly — preserves import.meta.url)
 COPY --from=builder /app/artifacts/api-server ./artifacts/api-server
 COPY --from=builder /app/artifacts/hms/dist/public ./artifacts/hms/dist/public
 COPY --from=builder /app/lib ./lib
 COPY --from=builder /app/node_modules ./node_modules
-
-# Startup script: bundled with all deps inlined (no external module resolution needed)
-COPY --from=builder /app/startup.bundle.cjs /app/startup.bundle.cjs
-COPY lib/db/migrations /app/lib/db/migrations
+COPY --from=builder /app/startup.mjs ./startup.mjs
 
 # Entrypoint: runs startup.mjs then starts the server
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
