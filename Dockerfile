@@ -27,7 +27,7 @@ RUN pnpm install --frozen-lockfile
 RUN pnpm -r --filter "@workspace/hms" --filter "@workspace/api-server" --if-present run build
 
 # Bundle startup.mjs with all deps inlined — avoids pnpm symlink issues in Alpine runtime
-RUN node_modules/.bin/esbuild startup.mjs \
+RUN artifacts/api-server/node_modules/.bin/esbuild startup.mjs \
       --bundle \
       --platform=node \
       --format=cjs \
