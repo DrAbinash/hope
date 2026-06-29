@@ -18,12 +18,20 @@ COPY tsconfig.json tsconfig.base.json ./
 COPY artifacts ./artifacts
 COPY lib ./lib
 COPY scripts ./scripts
+COPY startup.mjs ./startup.mjs
 
 RUN pnpm install --frozen-lockfile
 
 # Build production packages only: hms (Vite) and api-server (esbuild)
 # --if-present skips packages that have no "build" script (lib/db, scripts, etc.)
 RUN pnpm -r --filter "@workspace/hms" --filter "@workspace/api-server" --if-present run build
+
+# Bundle startup.mjs with all deps inlined — avoids pnpm symlink issues in Alpine runtime
+RUN node_modules/.bin/esbuild startup.mjs \
+      --bundle \
+      --platform=node \
+      --format=cjs \
+      --outfile=startup.bundle.cjs
 
 # ============================================================
 # Stage 2: Production runtime
@@ -49,8 +57,8 @@ COPY --from=builder /app/artifacts/hms/dist/public ./artifacts/hms/dist/public
 COPY --from=builder /app/lib ./lib
 COPY --from=builder /app/node_modules ./node_modules
 
-# Startup script: migrate + seed (pure Node/pg — no drizzle-kit binary needed)
-COPY startup.mjs /app/startup.mjs
+# Startup script: bundled with all deps inlined (no external module resolution needed)
+COPY --from=builder /app/startup.bundle.cjs /app/startup.bundle.cjs
 COPY lib/db/migrations /app/lib/db/migrations
 
 # Entrypoint: runs startup.mjs then starts the server
