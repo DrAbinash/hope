@@ -45,7 +45,7 @@ COPY --from=builder /app/pnpm-lock.yaml ./
 #   - artifacts/hms/dist         (compiled frontend, served as static files)
 #   - lib/                       (shared packages imported by api-server at runtime via tsx/node)
 COPY --from=builder /app/artifacts/api-server ./artifacts/api-server
-COPY --from=builder /app/artifacts/hms/dist ./artifacts/hms/dist
+COPY --from=builder /app/artifacts/hms/dist/public ./artifacts/hms/dist/public
 COPY --from=builder /app/lib ./lib
 COPY --from=builder /app/node_modules ./node_modules
 
@@ -63,7 +63,7 @@ EXPOSE 5000
 ENV NODE_ENV=production
 ENV PORT=5000
 ENV HOST=0.0.0.0
-ENV SERVE_STATIC_DIR=/app/artifacts/hms/dist
+ENV SERVE_STATIC_DIR=/app/artifacts/hms/dist/public
 
 # Health check — hits the /api/health endpoint (requires the route to exist; falls back gracefully)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \

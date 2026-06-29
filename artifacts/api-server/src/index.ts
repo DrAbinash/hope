@@ -27,7 +27,11 @@ const host = process.env["HOST"] || "0.0.0.0";
 // output (e.g. .../web). The /api router is already mounted in app.ts and takes
 // precedence; everything else falls through to index.html (SPA history fallback).
 const staticDir = process.env["SERVE_STATIC_DIR"];
-if (staticDir && fs.existsSync(staticDir)) {
+if (!staticDir) {
+  logger.warn("SERVE_STATIC_DIR is not set — frontend will not be served");
+} else if (!fs.existsSync(staticDir)) {
+  logger.error({ staticDir }, "SERVE_STATIC_DIR does not exist inside container — frontend will not be served. Check Docker build output.");
+} else {
   logger.info({ staticDir }, "Serving frontend static assets");
   app.use(
     express.static(staticDir, {
@@ -40,8 +44,7 @@ if (staticDir && fs.existsSync(staticDir)) {
       },
     }),
   );
-  // SPA history fallback: any non-/api GET that wasn't served by express.static
-  // above falls back to index.html so client-side routes deep-link correctly.
+  // SPA history fallback: any non-/api GET falls back to index.html
   app.use((req, res, next) => {
     if (req.method !== "GET") return next();
     if (req.path.startsWith("/api/") || req.path === "/api") return next();
