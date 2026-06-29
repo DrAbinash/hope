@@ -3,7 +3,6 @@ import fs from "node:fs";
 import express from "express";
 import app from "./app";
 import { logger } from "./lib/logger";
-import { seedDefaultAdmin } from "./lib/seed";
 
 const rawPort = process.env["PORT"];
 
@@ -52,11 +51,10 @@ if (!staticDir) {
   });
 }
 
-app.listen(port, host, async (err) => {
+app.listen(port, host, (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");
     process.exit(1);
   }
   logger.info({ host, port }, "Server listening");
-  await seedDefaultAdmin();
 });

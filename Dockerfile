@@ -49,7 +49,11 @@ COPY --from=builder /app/artifacts/hms/dist/public ./artifacts/hms/dist/public
 COPY --from=builder /app/lib ./lib
 COPY --from=builder /app/node_modules ./node_modules
 
-# Entrypoint: runs db push then starts the server
+# Startup script: migrate + seed (pure Node/pg — no drizzle-kit binary needed)
+COPY startup.mjs /app/startup.mjs
+COPY lib/db/migrations /app/lib/db/migrations
+
+# Entrypoint: runs startup.mjs then starts the server
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 
