@@ -60,7 +60,12 @@ export default function BillingHeadsPage() {
 
   const { data: heads, isLoading } = useQuery<BillingHead[]>({
     queryKey: ["/api/billing-heads"],
-    queryFn: () => fetch("/api/billing-heads").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/billing-heads", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch billing heads");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
   const create = useMutation({
@@ -74,6 +79,7 @@ export default function BillingHeadsPage() {
       const r = await fetch("/api/billing-heads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(body),
       });
       if (!r.ok) throw new Error((await r.json()).error || "Failed");
@@ -88,8 +94,9 @@ export default function BillingHeadsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const filtered = tab === "all" ? (heads || []) : (heads || []).filter((h) => h.category === tab);
-  const categoryGroups = (heads || []).reduce((acc, h) => {
+  const safeHeads = Array.isArray(heads) ? heads : [];
+  const filtered = tab === "all" ? safeHeads : safeHeads.filter((h) => h.category === tab);
+  const categoryGroups = safeHeads.reduce((acc, h) => {
     acc[h.category] = (acc[h.category] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);

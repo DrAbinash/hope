@@ -54,27 +54,57 @@ export default function InsurancePage() {
   // ============ DATA ============
   const { data: claims } = useQuery<ClaimRow[]>({
     queryKey: ["/api/insurance-claims"],
-    queryFn: () => fetch("/api/insurance-claims").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/insurance-claims", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch claims");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
   const { data: tpas } = useQuery<TpaProvider[]>({
     queryKey: ["/api/tpa-providers"],
-    queryFn: () => fetch("/api/tpa-providers").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/tpa-providers", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch TPA providers");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
   const { data: patients } = useQuery<Patient[]>({
     queryKey: ["/api/patients"],
-    queryFn: () => fetch("/api/patients").then((r) => r.json()).then((d) => Array.isArray(d) ? d : (d.patients || d.data || [])),
+    queryFn: async () => {
+      const r = await fetch("/api/patients", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch patients");
+      const data = await r.json();
+      return Array.isArray(data) ? data : (data?.patients || data?.data || []);
+    },
   });
   const { data: admissions } = useQuery<IpdAdm[]>({
     queryKey: ["/api/ipd"],
-    queryFn: () => fetch("/api/ipd").then((r) => r.json()).then((d) => Array.isArray(d) ? d : (d.admissions || [])),
+    queryFn: async () => {
+      const r = await fetch("/api/ipd", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch admissions");
+      const data = await r.json();
+      return Array.isArray(data) ? data : (data?.admissions || []);
+    },
   });
   const { data: policies } = useQuery<Policy[]>({
     queryKey: ["/api/patient-insurance"],
-    queryFn: () => fetch("/api/patient-insurance").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/patient-insurance", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch policies");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
   const { data: entities } = useQuery<Entity[]>({
     queryKey: ["/api/entities"],
-    queryFn: () => fetch("/api/entities").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/entities", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch entities");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
   // ============ NEW CLAIM ============
@@ -87,7 +117,7 @@ export default function InsurancePage() {
     mutationFn: async () => {
       if (!nc.patientId || !nc.tpaId) throw new Error("Patient and TPA required");
       const r = await fetch("/api/insurance-claims", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
         body: JSON.stringify({
           patientId: Number(nc.patientId),
           ipdAdmissionId: nc.ipdAdmissionId ? Number(nc.ipdAdmissionId) : null,
@@ -120,7 +150,7 @@ export default function InsurancePage() {
     mutationFn: async () => {
       if (!activeClaim || !actionMode) throw new Error("");
       const r = await fetch(`/api/insurance-claims/${activeClaim.id}/${actionMode === "preauth" ? "preauth-approve" : actionMode}`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
         body: JSON.stringify(actionData),
       });
       if (!r.ok) throw new Error("Failed");
@@ -140,7 +170,7 @@ export default function InsurancePage() {
   const createTpa = useMutation({
     mutationFn: async () => {
       const r = await fetch("/api/tpa-providers", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newTpa),
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(newTpa),
       });
       if (!r.ok) throw new Error((await r.json()).error || "Failed");
       return r.json();
@@ -161,7 +191,7 @@ export default function InsurancePage() {
     mutationFn: async () => {
       if (!np.patientId || !np.tpaId || !np.policyNo) throw new Error("Patient, TPA, policy no required");
       const r = await fetch("/api/patient-insurance", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
         body: JSON.stringify({
           patientId: Number(np.patientId), tpaId: Number(np.tpaId),
           policyNo: np.policyNo, policyHolderName: np.policyHolderName,

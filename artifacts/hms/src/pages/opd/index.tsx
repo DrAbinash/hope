@@ -50,6 +50,7 @@ export default function OPDPage() {
       const res = await fetch("/api/opd", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ ...form, patientId: parseInt(form.patientId), doctorId: parseInt(form.doctorId), fee: parseFloat(form.fee) || 0 }),
       });
       if (!res.ok) throw new Error(await res.text());

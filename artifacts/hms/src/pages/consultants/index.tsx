@@ -35,7 +35,7 @@ export default function ConsultantsHub() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Active Consultants</div><div className="text-2xl font-semibold mt-1">{(consultants?.consultants || []).filter((c: any) => c.isActive).length}</div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Active Consultants</div><div className="text-2xl font-semibold mt-1">{(Array.isArray(consultants?.consultants) ? consultants.consultants : []).filter((c: any) => c.isActive).length}</div></CardContent></Card>
         <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Engagements</div><div className="text-2xl font-semibold mt-1">{summary?.summary?.count ?? 0}</div></CardContent></Card>
         <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Pending Payout</div><div className="text-2xl font-semibold mt-1 text-amber-700">₹{(summary?.summary?.pending ?? 0).toLocaleString("en-IN")}</div></CardContent></Card>
         <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Paid (Total)</div><div className="text-2xl font-semibold mt-1 text-emerald-700">₹{(summary?.summary?.paid ?? 0).toLocaleString("en-IN")}</div></CardContent></Card>

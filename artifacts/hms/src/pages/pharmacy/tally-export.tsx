@@ -33,11 +33,20 @@ export default function TallyExport() {
 
   const { data: exports = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/pharmacy/tally-exports"],
-    queryFn: () => fetch("/api/pharmacy/tally-exports").then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/pharmacy/tally-exports", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch tally exports");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
   const exportMutation = useMutation({
-    mutationFn: (data: any) => fetch("/api/pharmacy/tally-exports", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then(async r => { const j = await r.json(); if (!r.ok) throw new Error(j.error); return j; }),
+    mutationFn: async (data: any) => {
+      const r = await fetch("/api/pharmacy/tally-exports", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(data) });
+      if (!r.ok) throw new Error((await r.json()).error || "Failed to export");
+      return r.json();
+    },
     onSuccess: (res) => {
       toast.success(`Export complete — ${res.record_count} vouchers generated`);
       setLastExport(res);
