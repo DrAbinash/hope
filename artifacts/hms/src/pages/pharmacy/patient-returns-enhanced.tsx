@@ -39,15 +39,21 @@ export default function PatientReturnsEnhanced() {
 
   const { data: returns = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/pharmacy/enhanced-returns"],
-    queryFn: () => fetch("/api/pharmacy/enhanced-returns").then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/pharmacy/enhanced-returns", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch returns");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
   async function lookupSale() {
     setLookupError(""); setSaleData(null);
     if (!saleLookup) return;
     try {
-      const r = await fetch(`/api/pharmacy/sales/${saleLookup}`).catch(() => null);
-      const j = r ? await r.json() : null;
+      const r = await fetch(`/api/pharmacy/sales/${saleLookup}`, { credentials: "include" });
+      if (!r.ok) { setLookupError("Sale not found. Check the ID."); return; }
+      const j = await r.json();
       if (!j || j.error) { setLookupError("Sale not found. Check the ID."); return; }
       setSaleData(j);
       // Pre-fill items from sale
@@ -57,13 +63,21 @@ export default function PatientReturnsEnhanced() {
   }
 
   const saveMutation = useMutation({
-    mutationFn: (data: any) => fetch("/api/pharmacy/enhanced-returns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then(async r => { const j = await r.json(); if (!r.ok) throw new Error(j.error); return j; }),
+    mutationFn: async (data: any) => {
+      const r = await fetch("/api/pharmacy/enhanced-returns", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(data) });
+      if (!r.ok) throw new Error((await r.json()).error || "Failed to create return");
+      return r.json();
+    },
     onSuccess: () => { toast.success("Return created successfully"); qc.invalidateQueries({ queryKey: ["/api/pharmacy/enhanced-returns"] }); setShowNew(false); setSaleData(null); setSaleLookup(""); },
     onError: (e: any) => toast.error(e.message),
   });
 
   const approveMutation = useMutation({
-    mutationFn: (id: number) => fetch(`/api/pharmacy/enhanced-returns/${id}/approve`, { method: "PATCH" }).then(r => r.json()),
+    mutationFn: async (id: number) => {
+      const r = await fetch(`/api/pharmacy/enhanced-returns/${id}/approve`, { method: "PATCH", credentials: "include" });
+      if (!r.ok) throw new Error("Failed to approve return");
+      return r.json();
+    },
     onSuccess: () => { toast.success("Return approved"); qc.invalidateQueries({ queryKey: ["/api/pharmacy/enhanced-returns"] }); },
     onError: (e: any) => toast.error(e.message),
   });

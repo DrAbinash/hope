@@ -82,23 +82,41 @@ export default function CounsellingSlip() {
 
   const { data: slip } = useQuery<any>({
     queryKey: ["/api/pharmacy/counselling-slips", saleId],
-    queryFn: () => fetch(`/api/pharmacy/counselling-slips/${saleId}`).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/pharmacy/counselling-slips/${saleId}`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch counselling slip");
+      return r.json();
+    },
     enabled: showSlip && !!saleId,
   });
 
   const { data: medicines = [] } = useQuery<any[]>({
     queryKey: ["/api/pharmacy/medicines"],
-    queryFn: () => fetch("/api/pharmacy/medicines?limit=500").then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/pharmacy/medicines?limit=500", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch medicines");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
   const { data: templates = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/pharmacy/counselling-templates"],
-    queryFn: () => fetch("/api/pharmacy/counselling-templates").then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/pharmacy/counselling-templates", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch templates");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
     enabled: tab === "templates",
   });
 
   const saveTplMutation = useMutation({
-    mutationFn: (data: any) => fetch("/api/pharmacy/counselling-templates", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then(r => r.json()),
+    mutationFn: async (data: any) => {
+      const r = await fetch("/api/pharmacy/counselling-templates", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(data) });
+      if (!r.ok) throw new Error("Failed to save template");
+      return r.json();
+    },
     onSuccess: () => { toast.success("Template saved"); qc.invalidateQueries({ queryKey: ["/api/pharmacy/counselling-templates"] }); setShowNewTemplate(false); },
     onError: (e: any) => toast.error(e.message),
   });

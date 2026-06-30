@@ -35,29 +35,52 @@ export default function CreditLimits() {
 
   const { data: limits = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/pharmacy/credit-limits"],
-    queryFn: () => fetch("/api/pharmacy/credit-limits").then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/pharmacy/credit-limits", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch credit limits");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
   const { data: aging = [] } = useQuery<any[]>({
     queryKey: ["/api/pharmacy/credit-limits/reports/aging"],
-    queryFn: () => fetch("/api/pharmacy/credit-limits/reports/aging").then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/pharmacy/credit-limits/reports/aging", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch aging report");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
     enabled: tab === "aging",
   });
 
   const { data: txns = [] } = useQuery<any[]>({
     queryKey: ["/api/pharmacy/credit-limits/patient-txns", txnPatient?.patient_id],
-    queryFn: () => fetch(`/api/pharmacy/credit-limits/${txnPatient!.patient_id}/transactions`).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/pharmacy/credit-limits/${txnPatient!.patient_id}/transactions`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch transactions");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
     enabled: !!txnPatient,
   });
 
   const saveMutation = useMutation({
-    mutationFn: (data: any) => fetch("/api/pharmacy/credit-limits", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then(r => r.json()),
+    mutationFn: async (data: any) => {
+      const r = await fetch("/api/pharmacy/credit-limits", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(data) });
+      if (!r.ok) throw new Error("Failed to save credit limit");
+      return r.json();
+    },
     onSuccess: () => { toast.success("Credit limit saved"); qc.invalidateQueries({ queryKey: ["/api/pharmacy/credit-limits"] }); setShowNew(false); },
     onError: (e: any) => toast.error(e.message),
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, ...data }: any) => fetch(`/api/pharmacy/credit-limits/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then(r => r.json()),
+    mutationFn: async ({ id, ...data }: any) => {
+      const r = await fetch(`/api/pharmacy/credit-limits/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(data) });
+      if (!r.ok) throw new Error("Failed to update credit limit");
+      return r.json();
+    },
     onSuccess: () => { toast.success("Credit limit updated"); qc.invalidateQueries({ queryKey: ["/api/pharmacy/credit-limits"] }); setEditDialog(null); },
     onError: (e: any) => toast.error(e.message),
   });

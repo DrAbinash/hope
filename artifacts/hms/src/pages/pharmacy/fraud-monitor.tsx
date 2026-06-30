@@ -46,22 +46,39 @@ export default function FraudMonitor() {
 
   const { data: events = [], isLoading, refetch } = useQuery<any[]>({
     queryKey: ["/api/pharmacy/fraud-events", filters],
-    queryFn: () => fetch(`/api/pharmacy/fraud-events?${params}`).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/pharmacy/fraud-events?${params}`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch fraud events");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
   const { data: summary } = useQuery<any>({
     queryKey: ["/api/pharmacy/fraud-events/summary"],
-    queryFn: () => fetch("/api/pharmacy/fraud-events/summary").then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/pharmacy/fraud-events/summary", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch summary");
+      return r.json();
+    },
   });
 
   const scanMutation = useMutation({
-    mutationFn: (days: number) => fetch("/api/pharmacy/fraud-events/scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ days }) }).then(r => r.json()),
+    mutationFn: async (days: number) => {
+      const r = await fetch("/api/pharmacy/fraud-events/scan", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ days }) });
+      if (!r.ok) throw new Error("Failed to run scan");
+      return r.json();
+    },
     onSuccess: (res) => { toast.success(`Scan complete — ${res.events_inserted} new events flagged`); qc.invalidateQueries({ queryKey: ["/api/pharmacy/fraud-events"] }); qc.invalidateQueries({ queryKey: ["/api/pharmacy/fraud-events/summary"] }); },
     onError: (e: any) => toast.error(e.message),
   });
 
   const reviewMutation = useMutation({
-    mutationFn: ({ id, note }: any) => fetch(`/api/pharmacy/fraud-events/${id}/review`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ review_notes: note }) }).then(r => r.json()),
+    mutationFn: async ({ id, note }: any) => {
+      const r = await fetch(`/api/pharmacy/fraud-events/${id}/review`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ review_notes: note }) });
+      if (!r.ok) throw new Error("Failed to mark as reviewed");
+      return r.json();
+    },
     onSuccess: () => { toast.success("Marked as reviewed"); qc.invalidateQueries({ queryKey: ["/api/pharmacy/fraud-events"] }); qc.invalidateQueries({ queryKey: ["/api/pharmacy/fraud-events/summary"] }); setReviewDialog(null); },
     onError: (e: any) => toast.error(e.message),
   });

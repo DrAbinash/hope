@@ -20,12 +20,21 @@ export default function GstReconciliation() {
 
   const { data: summary, isLoading } = useQuery<any>({
     queryKey: ["/api/pharmacy/gst-reconciliation", applied],
-    queryFn: () => fetch(`/api/pharmacy/gst-reconciliation?from_date=${applied.from}&to_date=${applied.to}`).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/pharmacy/gst-reconciliation?from_date=${applied.from}&to_date=${applied.to}`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch GST reconciliation");
+      return r.json();
+    },
   });
 
   const { data: hsn = [] } = useQuery<any[]>({
     queryKey: ["/api/pharmacy/gst-reconciliation/hsn", applied],
-    queryFn: () => fetch(`/api/pharmacy/gst-reconciliation/hsn-summary?from_date=${applied.from}&to_date=${applied.to}`).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/pharmacy/gst-reconciliation/hsn-summary?from_date=${applied.from}&to_date=${applied.to}`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch HSN summary");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
     enabled: tab === "hsn",
   });
 
