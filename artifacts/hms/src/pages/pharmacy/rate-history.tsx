@@ -19,11 +19,12 @@ const STATUS_COLORS: Record<string, string> = {
 
 async function fetchHistory(status?: string) {
   const p = status ? `?status=${status}` : "";
-  const r = await fetch(`/api/pharmacy/rate-history${p}`);
+  const r = await fetch(`/api/pharmacy/rate-history${p}`, { credentials: "include" });
   if (!r.ok) throw new Error("Failed");
-  return r.json();
+  const data = await r.json();
+  return Array.isArray(data) ? data : [];
 }
-async function fetchMedicines() { const r = await fetch("/api/pharmacy/medicines?limit=500"); if (!r.ok) return []; return r.json(); }
+async function fetchMedicines() { const r = await fetch("/api/pharmacy/medicines?limit=500", { credentials: "include" }); if (!r.ok) return []; const data = await r.json(); return Array.isArray(data) ? data : []; }
 
 export default function RateHistoryPage() {
   const qc = useQueryClient();
@@ -33,15 +34,17 @@ export default function RateHistoryPage() {
 
   const { data: history = [], isLoading } = useQuery({ queryKey: ["rate-history", filterStatus], queryFn: () => fetchHistory(filterStatus || undefined) });
   const { data: medicines = [] } = useQuery({ queryKey: ["medicines-list"], queryFn: fetchMedicines });
+  const safeHistory = Array.isArray(history) ? history : [];
+  const safeMedicines = Array.isArray(medicines) ? medicines : [];
 
   const addChange = useMutation({
-    mutationFn: async (d: any) => { const r = await fetch("/api/pharmacy/rate-history", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) }); if (!r.ok) throw new Error("Failed"); return r.json(); },
+    mutationFn: async (d: any) => { const r = await fetch("/api/pharmacy/rate-history", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(d) }); if (!r.ok) throw new Error("Failed"); return r.json(); },
     onSuccess: () => { toast.success("Rate change submitted"); qc.invalidateQueries({ queryKey: ["rate-history"] }); setShowAdd(false); setForm({ medicineId: "", changedField: "mrp", newValue: "", changeReason: "", effectiveDate: new Date().toISOString().slice(0, 10) }); },
     onError: () => toast.error("Failed"),
   });
 
   const approveMutation = useMutation({
-    mutationFn: async (id: number) => { const r = await fetch(`/api/pharmacy/rate-history/${id}/approve`, { method: "PUT" }); if (!r.ok) throw new Error("Failed"); return r.json(); },
+    mutationFn: async (id: number) => { const r = await fetch(`/api/pharmacy/rate-history/${id}/approve`, { method: "PUT", credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); },
     onSuccess: () => { toast.success("Rate change approved"); qc.invalidateQueries({ queryKey: ["rate-history"] }); },
     onError: () => toast.error("Failed"),
   });
@@ -86,8 +89,8 @@ export default function RateHistoryPage() {
             </TableHeader>
             <TableBody>
               {isLoading ? <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
-                : (history as any[]).length === 0 ? <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">No rate changes recorded</TableCell></TableRow>
-                : (history as any[]).map((rec: any) => {
+                : safeHistory.length === 0 ? <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">No rate changes recorded</TableCell></TableRow>
+                : safeHistory.map((rec: any) => {
                   const oldVal = parseFloat(rec.oldValue ?? "0");
                   const newVal = parseFloat(rec.newValue ?? "0");
                   const changePct = oldVal > 0 ? ((newVal - oldVal) / oldVal * 100).toFixed(1) : null;
@@ -132,7 +135,7 @@ export default function RateHistoryPage() {
             <div><Label>Medicine *</Label>
               <Select value={form.medicineId} onValueChange={v => setForm(f => ({ ...f, medicineId: v }))}>
                 <SelectTrigger><SelectValue placeholder="Select medicine" /></SelectTrigger>
-                <SelectContent className="max-h-48">{(medicines as any[]).map((m: any) => <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>)}</SelectContent>
+                <SelectContent className="max-h-48">{safeMedicines.map((m: any) => <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div><Label>Rate Field *</Label>
