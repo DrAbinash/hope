@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS "entities" (
 CREATE TABLE IF NOT EXISTS "employees" (
   "id" serial PRIMARY KEY NOT NULL,
   "entity_id" integer NOT NULL,
+  "emp_code" text,
   "username" text NOT NULL UNIQUE,
   "name" text NOT NULL,
   "role" text NOT NULL,
