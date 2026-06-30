@@ -145,6 +145,7 @@ function RolePermissionsPanel() {
       const r = await fetch(`/api/permissions/role/${role}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(body),
       });
       if (!r.ok) throw new Error("Save failed");
@@ -231,7 +232,11 @@ function UserOverridesPanel() {
 
   const { data, isLoading } = useQuery<UserPermissionResponse>({
     queryKey: ["/api/permissions/user", employeeId],
-    queryFn: () => fetch(`/api/permissions/user/${employeeId}`).then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/permissions/user/${employeeId}`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch user permissions");
+      return r.json();
+    },
     enabled: !!employeeId,
   });
 
@@ -252,6 +257,7 @@ function UserOverridesPanel() {
       const r = await fetch(`/api/permissions/user/${employeeId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(body),
       });
       if (!r.ok) throw new Error("Save failed");
