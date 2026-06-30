@@ -107,37 +107,75 @@ export default function OtPage() {
 
   const { data: bookings } = useQuery<Booking[]>({
     queryKey: ["/api/ot-bookings"],
-    queryFn: () => fetch("/api/ot-bookings").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/ot-bookings", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch bookings");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
   const { data: patientList } = useQuery<{ patients: Patient[] }>({
     queryKey: ["/api/patients", patientSearch],
-    queryFn: () => fetch(`/api/patients?search=${encodeURIComponent(patientSearch)}`).then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/patients?search=${encodeURIComponent(patientSearch)}`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch patients");
+      return r.json();
+    },
     enabled: patientSearch.length >= 2,
   });
   const { data: doctors } = useQuery<Doctor[]>({
     queryKey: ["/api/doctors"],
-    queryFn: () => fetch("/api/doctors").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/doctors", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch doctors");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
   const { data: heads } = useQuery<BillingHead[]>({
     queryKey: ["/api/billing-heads"],
-    queryFn: () => fetch("/api/billing-heads").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/billing-heads", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch billing heads");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
   const { data: inventory } = useQuery<InventoryItem[]>({
     queryKey: ["/api/inventory"],
-    queryFn: () => fetch("/api/inventory").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/inventory", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch inventory");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
   const { data: entities } = useQuery<Entity[]>({
     queryKey: ["/api/entities"],
-    queryFn: () => fetch("/api/entities").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/entities", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch entities");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
   const { data: employees } = useQuery<Employee[]>({
     queryKey: ["/api/employees"],
-    queryFn: () => fetch("/api/employees").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/employees", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch employees");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
-  const otHeads = (heads || []).filter((h) => h.category === "OT");
-  const cashiers = (employees || []).filter((e) => e.username && ["cashier", "receptionist", "admin"].includes(e.role));
-  const selectedPatient = (patientList?.patients || []).find((p) => p.id === Number(newB.patientId));
+  const safeHeads = Array.isArray(heads) ? heads : [];
+  const safeEmployees = Array.isArray(employees) ? employees : [];
+  const safePatients = Array.isArray(patientList?.patients) ? patientList.patients : [];
+
+  const otHeads = safeHeads.filter((h) => h.category === "OT");
+  const cashiers = safeEmployees.filter((e) => e.username && ["cashier", "receptionist", "admin"].includes(e.role));
+  const selectedPatient = safePatients.find((p) => p.id === Number(newB.patientId));
 
   const filteredBookings = useMemo(() => {
     const all = bookings || [];
