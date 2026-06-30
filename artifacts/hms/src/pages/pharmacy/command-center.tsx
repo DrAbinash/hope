@@ -12,13 +12,13 @@ import {
 } from "lucide-react";
 
 async function fetchCommandCenter() {
-  const r = await fetch("/api/pharmacy/command-center");
+  const r = await fetch("/api/pharmacy/command-center", { credentials: "include" });
   if (!r.ok) throw new Error("Failed");
   return r.json();
 }
 
 async function markAllRead() {
-  const r = await fetch("/api/pharmacy/notifications/read-all", { method: "PUT" });
+  const r = await fetch("/api/pharmacy/notifications/read-all", { method: "PUT", credentials: "include" });
   if (!r.ok) throw new Error("Failed");
 }
 
@@ -69,7 +69,7 @@ export default function PharmacyCommandCenter() {
   });
 
   const kpis = data?.kpis ?? {};
-  const alerts: any[] = data?.alerts ?? [];
+  const alerts: any[] = Array.isArray(data?.alerts) ? data.alerts : [];
 
   function formatVal(key: string, v: number): string {
     if (key === "todaySales") return `₹${Number(v).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
