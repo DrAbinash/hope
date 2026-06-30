@@ -77,27 +77,51 @@ export default function BillingDeskPage() {
   // --- Queries ---
   const { data: patientList } = useQuery<{ patients: Patient[] }>({
     queryKey: ["/api/patients", search],
-    queryFn: () => fetch(`/api/patients?search=${encodeURIComponent(search)}`).then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/patients?search=${encodeURIComponent(search)}`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch patients");
+      return r.json();
+    },
     enabled: search.length >= 2,
   });
   const { data: heads } = useQuery<BillingHead[]>({
     queryKey: ["/api/billing-heads"],
-    queryFn: () => fetch("/api/billing-heads").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/billing-heads", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch billing heads");
+      return r.json();
+    },
   });
   const { data: packages } = useQuery<Pkg[]>({
     queryKey: ["/api/packages"],
-    queryFn: () => fetch("/api/packages").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/packages", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch packages");
+      return r.json();
+    },
   });
   const { data: entities } = useQuery<Entity[]>({
     queryKey: ["/api/entities"],
-    queryFn: () => fetch("/api/entities").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/entities", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch entities");
+      return r.json();
+    },
   });
   const { data: employees } = useQuery<Employee[]>({
     queryKey: ["/api/employees"],
-    queryFn: () => fetch("/api/employees").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/employees", { credentials: "include" });
+      if (!r.ok) {
+        throw new Error(`Failed to fetch employees: ${r.status}`);
+      }
+      const data = await r.json();
+      // Ensure data is an array
+      return Array.isArray(data) ? data : [];
+    },
   });
 
-  const cashiers = (employees || []).filter((e) => e.username && ["cashier", "receptionist", "admin"].includes(e.role));
+  const cashiers = (Array.isArray(employees) ? employees : []).filter((e) => e.username && ["cashier", "receptionist", "admin"].includes(e.role));
 
   // --- Mutations ---
   const registerPatient = useMutation({
