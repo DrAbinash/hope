@@ -50,8 +50,8 @@ async function runMigration(client) {
 async function seedAdmin(client) {
   // Ensure default entity exists
   const entityRes = await client.query(
-    `INSERT INTO entities (name, type, owner, email, created_at)
-     VALUES ($1, 'hospital', 'Abinash Singh', 'abinashsingh@gmail.com', now())
+    `INSERT INTO entities (name, type, email, created_at)
+     VALUES ($1, 'hospital', 'abinashsingh@gmail.com', now())
      ON CONFLICT (name) DO NOTHING
      RETURNING id`,
     ["Hope NeuroTrauma & MultiSpeciality Hospital"]
