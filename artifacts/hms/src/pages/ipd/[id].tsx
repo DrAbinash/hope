@@ -33,6 +33,7 @@ export default function IPDDetail() {
       const res = await fetch(`/api/ipd/${id}/discharge`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(form),
       });
       if (!res.ok) throw new Error(await res.text());
