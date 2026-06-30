@@ -89,7 +89,8 @@ export default function BillingDeskPage() {
     queryFn: async () => {
       const r = await fetch("/api/billing-heads", { credentials: "include" });
       if (!r.ok) throw new Error("Failed to fetch billing heads");
-      return r.json();
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
     },
   });
   const { data: packages } = useQuery<Pkg[]>({
@@ -97,7 +98,8 @@ export default function BillingDeskPage() {
     queryFn: async () => {
       const r = await fetch("/api/packages", { credentials: "include" });
       if (!r.ok) throw new Error("Failed to fetch packages");
-      return r.json();
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
     },
   });
   const { data: entities } = useQuery<Entity[]>({
@@ -105,7 +107,8 @@ export default function BillingDeskPage() {
     queryFn: async () => {
       const r = await fetch("/api/entities", { credentials: "include" });
       if (!r.ok) throw new Error("Failed to fetch entities");
-      return r.json();
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
     },
   });
   const { data: employees } = useQuery<Employee[]>({
@@ -121,6 +124,10 @@ export default function BillingDeskPage() {
     },
   });
 
+  const safeHeads = Array.isArray(heads) ? heads : [];
+  const safePackages = Array.isArray(packages) ? packages : [];
+  const safeEntities = Array.isArray(entities) ? entities : [];
+  const safePatients = Array.isArray(patientList?.patients) ? patientList.patients : [];
   const cashiers = (Array.isArray(employees) ? employees : []).filter((e) => e.username && ["cashier", "receptionist", "admin"].includes(e.role));
 
   // --- Mutations ---
@@ -129,6 +136,7 @@ export default function BillingDeskPage() {
       const r = await fetch("/api/patients", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           name: newPatient.name,
           age: Number(newPatient.age),
@@ -175,6 +183,7 @@ export default function BillingDeskPage() {
       const r = await fetch("/api/billing/invoices", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(body),
       });
       if (!r.ok) throw new Error((await r.json()).error || "Failed to create invoice");
@@ -205,8 +214,8 @@ export default function BillingDeskPage() {
   };
 
   const addHeadToCart = () => {
-    if (!pickHead || !heads) return;
-    const h = heads.find((x) => x.id === Number(pickHead));
+    if (!pickHead) return;
+    const h = safeHeads.find((x) => x.id === Number(pickHead));
     if (!h) return;
     addHeadObjectToCart(h);
     setPickHead("");
@@ -282,9 +291,9 @@ export default function BillingDeskPage() {
                     <Input placeholder="Search by name, UHID, or phone..." value={search}
                       onChange={(e) => setSearch(e.target.value)} className="pl-10" />
                   </div>
-                  {search.length >= 2 && (patientList?.patients || []).length > 0 && (
+                  {search.length >= 2 && safePatients.length > 0 && (
                     <div className="border rounded-lg divide-y max-h-60 overflow-y-auto">
-                      {(patientList?.patients || []).slice(0, 10).map((p) => (
+                      {safePatients.slice(0, 10).map((p) => (
                         <button key={p.id} onClick={() => { setPatient(p); setSearch(""); }}
                           className="w-full text-left p-2 px-3 hover:bg-muted text-sm flex justify-between items-center">
                           <span>
@@ -296,7 +305,7 @@ export default function BillingDeskPage() {
                       ))}
                     </div>
                   )}
-                  {search.length >= 2 && (patientList?.patients || []).length === 0 && (
+                  {search.length >= 2 && safePatients.length === 0 && (
                     <p className="text-sm text-muted-foreground text-center py-2">No patient found.</p>
                   )}
                   <Button variant="outline" onClick={() => setShowRegister(true)} className="w-full">
@@ -317,7 +326,7 @@ export default function BillingDeskPage() {
             <CardContent>
               <BillingQuickServices
                 entityId={Number(entityId)}
-                heads={heads || []}
+                heads={safeHeads}
                 onPick={addHeadObjectToCart}
               />
               <Tabs defaultValue="heads">
@@ -332,7 +341,7 @@ export default function BillingDeskPage() {
                         <SelectValue placeholder="Search consultation, lab test, room, OT, X-Ray..." />
                       </SelectTrigger>
                       <SelectContent className="max-h-80">
-                        {(heads || []).map((h) => (
+                        {safeHeads.map((h) => (
                           <SelectItem key={h.id} value={String(h.id)}>
                             <span className="font-mono text-xs text-muted-foreground mr-2">{h.code}</span>
                             {h.name} — ₹{Number(h.defaultRate).toLocaleString("en-IN")}
@@ -347,11 +356,11 @@ export default function BillingDeskPage() {
                   </div>
                 </TabsContent>
                 <TabsContent value="packages" className="mt-3 space-y-2">
-                  {(packages || []).length === 0 ? (
+                  {safePackages.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4 text-center">No packages defined.</p>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {(packages || []).map((p) => {
+                      {safePackages.map((p) => {
                         const mrp = Number(p.mrpTotal);
                         const rate = Number(p.packageRate);
                         const pct = mrp > 0 ? Math.round((1 - rate / mrp) * 100) : 0;
@@ -445,7 +454,7 @@ export default function BillingDeskPage() {
                     <Select value={entityId} onValueChange={setEntityId}>
                       <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {(entities || []).map((e) => <SelectItem key={e.id} value={String(e.id)}>{e.name}</SelectItem>)}
+                        {safeEntities.map((e) => <SelectItem key={e.id} value={String(e.id)}>{e.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
