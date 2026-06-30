@@ -35,11 +35,13 @@ export default function EstimationsHub() {
       const url = typeFilter ? `/api/estimations?type=${typeFilter}` : `/api/estimations`;
       const r = await fetch(url, { credentials: "include" });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      return r.json() as Promise<{ estimations: any[] }>;
+      const json = await r.json();
+      return { estimations: Array.isArray(json?.estimations) ? json.estimations : [] };
     },
   });
 
-  const rows = (data?.estimations || []).filter((e) =>
+  const safeEstimations = Array.isArray(data?.estimations) ? data.estimations : [];
+  const rows = safeEstimations.filter((e) =>
     !search ||
     e.patientName?.toLowerCase().includes(search.toLowerCase()) ||
     e.estimationNo?.toLowerCase().includes(search.toLowerCase()) ||
