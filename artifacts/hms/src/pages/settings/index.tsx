@@ -320,8 +320,15 @@ function EntitySettingsForm({ entityId }: { entityId: number }) {
 export default function SettingsPage() {
   const { data: entities } = useQuery<Entity[]>({
     queryKey: ["/api/entities"],
-    queryFn: () => fetch("/api/entities").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/entities", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch entities");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
+
+  const safeEntities = Array.isArray(entities) ? entities : [];
 
   return (
     <div className="space-y-6">
@@ -330,16 +337,16 @@ export default function SettingsPage() {
         <p className="text-muted-foreground text-sm">Configure identity, tax info, document prefixes, and bill print templates per entity.</p>
       </div>
 
-      {entities && entities.length > 0 ? (
-        <Tabs defaultValue={String(entities[0].id)}>
+      {safeEntities.length > 0 ? (
+        <Tabs defaultValue={String(safeEntities[0].id)}>
           <TabsList>
-            {entities.map((e) => (
+            {safeEntities.map((e) => (
               <TabsTrigger key={e.id} value={String(e.id)} className="gap-2">
                 <Building2 className="w-4 h-4" />{e.name}
               </TabsTrigger>
             ))}
           </TabsList>
-          {entities.map((e) => (
+          {safeEntities.map((e) => (
             <TabsContent key={e.id} value={String(e.id)} className="mt-4">
               <EntitySettingsForm entityId={e.id} />
             </TabsContent>
