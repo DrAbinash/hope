@@ -94,70 +94,101 @@ export default function PatientProfilePage() {
 
   const { data, isLoading, error } = useQuery<PatientHistoryData>({
     queryKey: [`/api/patients/${patientId}/history`],
-    queryFn: () => fetch(`/api/patients/${patientId}/history`).then((r) => {
+    queryFn: async () => {
+      const r = await fetch(`/api/patients/${patientId}/history`, { credentials: "include" });
       if (!r.ok) throw new Error("Failed to load patient history");
       return r.json();
-    }),
+    },
     enabled: !!patientId,
   });
 
   const { data: aiAlerts } = useQuery({
     queryKey: [`/api/ai/clinical-alerts`, patientId],
-    queryFn: () => fetch(`/api/ai/clinical-alerts`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ patientId })
-    }).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/ai/clinical-alerts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ patientId })
+      });
+      if (!r.ok) throw new Error("Failed to fetch clinical alerts");
+      return r.json();
+    },
     enabled: !!patientId
   });
 
   const { data: aiTimeline } = useQuery({
     queryKey: [`/api/ai/patient-timeline`, patientId],
-    queryFn: () => fetch(`/api/ai/patient-timeline`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ patientId })
-    }).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/ai/patient-timeline`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ patientId })
+      });
+      if (!r.ok) throw new Error("Failed to fetch timeline");
+      return r.json();
+    },
     enabled: !!patientId
   });
 
   const { data: aiRadiology } = useQuery({
     queryKey: [`/api/ai/radiology-summary`, patientId],
-    queryFn: () => fetch(`/api/ai/radiology-summary`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ patientId })
-    }).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/ai/radiology-summary`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ patientId })
+      });
+      if (!r.ok) throw new Error("Failed to fetch radiology summary");
+      return r.json();
+    },
     enabled: !!patientId
   });
 
   const { data: aiLaboratory } = useQuery({
     queryKey: [`/api/ai/laboratory-summary`, patientId],
-    queryFn: () => fetch(`/api/ai/laboratory-summary`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ patientId })
-    }).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/ai/laboratory-summary`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ patientId })
+      });
+      if (!r.ok) throw new Error("Failed to fetch laboratory summary");
+      return r.json();
+    },
     enabled: !!patientId
   });
 
   const { data: aiMedication } = useQuery({
     queryKey: [`/api/ai/medication-summary`, patientId],
-    queryFn: () => fetch(`/api/ai/medication-summary`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ patientId })
-    }).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/ai/medication-summary`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ patientId })
+      });
+      if (!r.ok) throw new Error("Failed to fetch medication summary");
+      return r.json();
+    },
     enabled: !!patientId
   });
 
   const { data: aiSummary } = useQuery({
     queryKey: [`/api/ai/patient-summary`, patientId],
-    queryFn: () => fetch(`/api/ai/patient-summary`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ patientId })
-    }).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/ai/patient-summary`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ patientId })
+      });
+      if (!r.ok) throw new Error("Failed to fetch patient summary");
+      return r.json();
+    },
     enabled: !!patientId
   });
 
@@ -221,7 +252,7 @@ export default function PatientProfilePage() {
       </div>
 
       {/* AI Doctor Preparation Panel */}
-      {aiAlerts?.doctorPreparation && aiAlerts.doctorPreparation.length > 0 && (
+      {Array.isArray(aiAlerts?.doctorPreparation) && aiAlerts.doctorPreparation.length > 0 && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 space-y-2">
           <h3 className="font-semibold text-indigo-950 flex items-center gap-2 text-sm">
             <Sparkles className="h-4.5 w-4.5 text-indigo-600 animate-pulse" />
