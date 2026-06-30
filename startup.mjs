@@ -135,7 +135,11 @@ async function validateSchema(client) {
 
   const requiredColumns = {
     entities: ['id', 'name', 'type', 'email', 'created_at', 'updated_at'],
-    employees: ['id', 'entity_id', 'emp_code', 'username', 'name', 'email', 'role', 'department', 'pin_hash', 'is_active', 'created_at', 'updated_at'],
+    employees: [
+      'id', 'entity_id', 'emp_code', 'username', 'name', 'email', 'role',
+      'department', 'designation', 'pin_hash', 'is_active', 'phone', 'address',
+      'landing_path', 'joining_date', 'monthly_salary', 'created_at'
+    ],
   };
 
   const missingColumns = {};
