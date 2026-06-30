@@ -30,15 +30,27 @@ interface EntitySummary {
 export default function EntitiesPage() {
   const { data: entities, isLoading: entitiesLoading } = useQuery<Entity[]>({
     queryKey: ["/api/entities"],
-    queryFn: () => fetch("/api/entities").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/entities", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch entities");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
   const { data: summaries, isLoading: summaryLoading } = useQuery<EntitySummary[]>({
     queryKey: ["/api/entities/summary"],
-    queryFn: () => fetch("/api/entities/summary").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/entities/summary", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch summaries");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
   const isLoading = entitiesLoading || summaryLoading;
   const fmt = (n: number) => `₹${n.toLocaleString("en-IN")}`;
+  const safeEntities = Array.isArray(entities) ? entities : [];
+  const safeSummaries = Array.isArray(summaries) ? summaries : [];
 
   return (
     <div className="space-y-6">
@@ -56,8 +68,8 @@ export default function EntitiesPage() {
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {(entities || []).map((entity) => {
-            const summary = (summaries || []).find((s) => s.entityId === entity.id);
+          {safeEntities.map((entity) => {
+            const summary = safeSummaries.find((s) => s.entityId === entity.id);
             const isHospital = entity.type === "hospital";
             const Icon = isHospital ? Building2 : Pill;
             const accent = isHospital ? "text-blue-600" : "text-emerald-600";

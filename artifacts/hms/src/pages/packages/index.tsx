@@ -41,14 +41,25 @@ export default function PackagesPage() {
 
   const { data: packages, isLoading } = useQuery<Pkg[]>({
     queryKey: ["/api/packages"],
-    queryFn: () => fetch("/api/packages").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/packages", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch packages");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
   const { data: heads } = useQuery<BillingHead[]>({
     queryKey: ["/api/billing-heads"],
-    queryFn: () => fetch("/api/billing-heads").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/billing-heads", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch billing heads");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
-  const headMap = new Map((heads || []).map((h) => [h.id, h]));
+  const safeHeads = Array.isArray(heads) ? heads : [];
+  const headMap = new Map(safeHeads.map((h) => [h.id, h]));
   const computedMrp = items.reduce((s, it) => {
     const h = headMap.get(it.billingHeadId);
     return s + (h ? Number(h.defaultRate) * it.quantity : 0);
@@ -66,6 +77,7 @@ export default function PackagesPage() {
       const r = await fetch("/api/packages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(body),
       });
       if (!r.ok) throw new Error((await r.json()).error || "Failed");

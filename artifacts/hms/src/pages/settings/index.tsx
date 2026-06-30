@@ -50,7 +50,10 @@ function EntitySettingsForm({ entityId }: { entityId: number }) {
 
   const { data, isLoading } = useQuery<Settings>({
     queryKey: ["/api/hospital-settings", entityId],
-    queryFn: () => fetch(`/api/hospital-settings/${entityId}`).then((r) => r.ok ? r.json() : null),
+    queryFn: async () => {
+      const r = await fetch(`/api/hospital-settings/${entityId}`, { credentials: "include" });
+      return r.ok ? r.json() : null;
+    },
   });
 
   useEffect(() => { if (data) setForm(data); }, [data]);
@@ -60,6 +63,7 @@ function EntitySettingsForm({ entityId }: { entityId: number }) {
       const r = await fetch(`/api/hospital-settings/${entityId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(form),
       });
       if (!r.ok) throw new Error("Failed to save");
