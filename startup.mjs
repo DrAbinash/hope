@@ -133,6 +133,25 @@ async function runMigrations(client) {
 async function validateSchema(client) {
   console.log("[startup] Validating schema completeness...");
 
+  // Check for required tables
+  const requiredTables = ['user_sessions'];
+  const tableCheckResult = await client.query(
+    `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`
+  );
+  const existingTables = new Set(tableCheckResult.rows.map(r => r.table_name));
+
+  const missingTables = requiredTables.filter(t => !existingTables.has(t));
+  if (missingTables.length > 0) {
+    console.error("\n[startup] ========== SCHEMA VALIDATION FAILED ==========");
+    console.error("[startup] Missing tables detected:");
+    for (const table of missingTables) {
+      console.error(`[startup]   Table "${table}"`);
+    }
+    console.error("[startup] Action: Ensure all migrations in lib/db/migrations/ are created and applied");
+    console.error("[startup] ===================================================\n");
+    throw new Error(`Schema validation failed: missing tables ${missingTables.join(', ')}`);
+  }
+
   const requiredColumns = {
     entities: ['id', 'name', 'type', 'email', 'created_at', 'updated_at'],
     employees: [
