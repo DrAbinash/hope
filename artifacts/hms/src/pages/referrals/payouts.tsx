@@ -56,7 +56,11 @@ export default function ReferralPayouts() {
     },
   });
 
-  const selectedDoctor = (doctors?.doctors || []).find((d) => String(d.id) === form.referralDoctorId);
+  const safeDoctors = Array.isArray(doctors?.doctors) ? doctors.doctors : [];
+  const safePatients = Array.isArray(patients?.patients) ? patients.patients : [];
+  const safePayouts = Array.isArray(data?.payouts) ? data.payouts : [];
+
+  const selectedDoctor = safeDoctors.find((d) => String(d.id) === form.referralDoctorId);
   const previewShare = (() => {
     const amt = Number(form.serviceAmount) || 0;
     if (!selectedDoctor || amt <= 0) return 0;
@@ -115,7 +119,7 @@ export default function ReferralPayouts() {
             <SelectTrigger className="w-56"><SelectValue placeholder="All doctors"/></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All doctors</SelectItem>
-              {(doctors?.doctors || []).map((d) => <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>)}
+              {safeDoctors.map((d) => <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={statusFilter || "all"} onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}>
@@ -137,8 +141,8 @@ export default function ReferralPayouts() {
           </TableRow></TableHeader>
           <TableBody>
             {isLoading ? <TableRow><TableCell colSpan={9} className="text-center py-6 text-muted-foreground">Loading…</TableCell></TableRow>
-              : (data?.payouts || []).length === 0 ? <TableRow><TableCell colSpan={9} className="text-center py-6 text-muted-foreground">No share records yet.</TableCell></TableRow>
-              : (data?.payouts || []).map((p) => (
+              : safePayouts.length === 0 ? <TableRow><TableCell colSpan={9} className="text-center py-6 text-muted-foreground">No share records yet.</TableCell></TableRow>
+              : safePayouts.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell>{p.serviceDate}</TableCell>
                   <TableCell className="font-medium">{p.doctorName}</TableCell>
@@ -166,7 +170,7 @@ export default function ReferralPayouts() {
               <Select value={form.referralDoctorId} onValueChange={(v) => setForm({ ...form, referralDoctorId: v })}>
                 <SelectTrigger><SelectValue placeholder="Choose doctor"/></SelectTrigger>
                 <SelectContent>
-                  {(doctors?.doctors || []).map((d) => <SelectItem key={d.id} value={String(d.id)}>{d.name} — {d.paymentType === "percentage" ? `${Number(d.paymentValue).toFixed(2)}%` : `₹${Number(d.paymentValue)} fixed`}</SelectItem>)}
+                  {safeDoctors.map((d) => <SelectItem key={d.id} value={String(d.id)}>{d.name} — {d.paymentType === "percentage" ? `${Number(d.paymentValue).toFixed(2)}%` : `₹${Number(d.paymentValue)} fixed`}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -180,7 +184,7 @@ export default function ReferralPayouts() {
                 <SelectTrigger><SelectValue placeholder="Pick patient"/></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">— None —</SelectItem>
-                  {(patients?.patients || []).map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.name} ({p.uhid})</SelectItem>)}
+                  {safePatients.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.name} ({p.uhid})</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
