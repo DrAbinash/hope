@@ -27,9 +27,10 @@ async function fetchQueue(status?: string, priority?: string) {
   const params = new URLSearchParams();
   if (status) params.set("status", status);
   if (priority) params.set("priority", priority);
-  const r = await fetch(`/api/pharmacy/prescription-queue?${params}`);
+  const r = await fetch(`/api/pharmacy/prescription-queue?${params}`, { credentials: "include" });
   if (!r.ok) throw new Error("Failed");
-  return r.json();
+  const data = await r.json();
+  return Array.isArray(data) ? data : [];
 }
 
 export default function PrescriptionQueuePage() {
@@ -43,10 +44,11 @@ export default function PrescriptionQueuePage() {
     queryFn: () => fetchQueue(filterStatus || undefined, filterPriority || undefined),
     refetchInterval: 30000,
   });
+  const safeQueue = Array.isArray(queue) ? queue : [];
 
   const dispenseMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: string }) => {
-      const r = await fetch(`/api/pharmacy/prescription-queue/${id}/dispense`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
+      const r = await fetch(`/api/pharmacy/prescription-queue/${id}/dispense`, { method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ status }) });
       if (!r.ok) throw new Error("Failed");
       return r.json();
     },
@@ -54,11 +56,11 @@ export default function PrescriptionQueuePage() {
     onError: () => toast.error("Failed to update queue"),
   });
 
-  const filtered = (queue as any[]).filter((q: any) =>
+  const filtered = safeQueue.filter((q: any) =>
     !search || q.patientName?.toLowerCase().includes(search.toLowerCase()) || q.queueNo?.includes(search)
   );
 
-  const counts = { pending: (queue as any[]).filter((q: any) => q.status === "pending").length, urgent: (queue as any[]).filter((q: any) => q.priority !== "normal").length };
+  const counts = { pending: safeQueue.filter((q: any) => q.status === "pending").length, urgent: safeQueue.filter((q: any) => q.priority !== "normal").length };
 
   return (
     <div className="space-y-6">

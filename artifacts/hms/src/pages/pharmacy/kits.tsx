@@ -12,10 +12,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Plus, Package, Scissors } from "lucide-react";
 
-async function fetchKits() { const r = await fetch("/api/pharmacy/kits"); if (!r.ok) throw new Error("Failed"); return r.json(); }
-async function fetchKitIssues() { const r = await fetch("/api/pharmacy/kit-issues"); if (!r.ok) throw new Error("Failed"); return r.json(); }
-async function fetchMedicines() { const r = await fetch("/api/pharmacy/medicines?limit=500"); if (!r.ok) return []; return r.json(); }
-async function fetchPatients() { const r = await fetch("/api/patients?limit=100"); if (!r.ok) return []; const j = await r.json(); return Array.isArray(j) ? j : (j.data ?? []); }
+async function fetchKits() { const r = await fetch("/api/pharmacy/kits", { credentials: "include" }); if (!r.ok) throw new Error("Failed"); const data = await r.json(); return Array.isArray(data) ? data : []; }
+async function fetchKitIssues() { const r = await fetch("/api/pharmacy/kit-issues", { credentials: "include" }); if (!r.ok) throw new Error("Failed"); const data = await r.json(); return Array.isArray(data) ? data : []; }
+async function fetchMedicines() { const r = await fetch("/api/pharmacy/medicines?limit=500", { credentials: "include" }); if (!r.ok) return []; const data = await r.json(); return Array.isArray(data) ? data : []; }
+async function fetchPatients() { const r = await fetch("/api/patients?limit=100", { credentials: "include" }); if (!r.ok) return []; const j = await r.json(); return Array.isArray(j) ? j : (j.data ?? []); }
 
 const PROC_TYPES = ["surgery", "dressing", "central_line", "intubation", "iv_cannula", "catheter", "suturing", "lumbar_puncture", "dialysis", "other"];
 
@@ -30,15 +30,19 @@ export default function KitsPage() {
   const { data: kitIssues = [] } = useQuery({ queryKey: ["kit-issues"], queryFn: fetchKitIssues });
   const { data: medicines = [] } = useQuery({ queryKey: ["medicines-list"], queryFn: fetchMedicines });
   const { data: patients = [] } = useQuery({ queryKey: ["patients-list"], queryFn: fetchPatients });
+  const safeKits = Array.isArray(kits) ? kits : [];
+  const safeKitIssues = Array.isArray(kitIssues) ? kitIssues : [];
+  const safeMedicines = Array.isArray(medicines) ? medicines : [];
+  const safePatients = Array.isArray(patients) ? patients : [];
 
   const createKit = useMutation({
-    mutationFn: async (d: any) => { const r = await fetch("/api/pharmacy/kits", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) }); if (!r.ok) throw new Error("Failed"); return r.json(); },
+    mutationFn: async (d: any) => { const r = await fetch("/api/pharmacy/kits", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(d) }); if (!r.ok) throw new Error("Failed"); return r.json(); },
     onSuccess: () => { toast.success("Kit created"); qc.invalidateQueries({ queryKey: ["kits"] }); setShowCreate(false); setKitForm({ kitName: "", kitCode: "", procedureType: "", description: "", items: [{ medicineId: "", quantity: 1, unit: "" }] }); },
     onError: () => toast.error("Failed to create kit"),
   });
 
   const issueKit = useMutation({
-    mutationFn: async ({ kitId, ...rest }: any) => { const r = await fetch(`/api/pharmacy/kits/${kitId}/issue`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(rest) }); if (!r.ok) { const j = await r.json(); throw new Error(j.error); } return r.json(); },
+    mutationFn: async ({ kitId, ...rest }: any) => { const r = await fetch(`/api/pharmacy/kits/${kitId}/issue`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(rest) }); if (!r.ok) { const j = await r.json(); throw new Error(j.error); } return r.json(); },
     onSuccess: (data) => {
       toast.success(`Kit issued — ₹${Number(data.totalCost).toLocaleString("en-IN", { maximumFractionDigits: 0 })} charged`);
       qc.invalidateQueries({ queryKey: ["kit-issues"] }); setShowIssue(null); setIssueForm({ patientId: "", notes: "" });
@@ -66,9 +70,9 @@ export default function KitsPage() {
 
         <TabsContent value="kits" className="mt-4">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {(kits as any[]).length === 0 ? (
+            {safeKits.length === 0 ? (
               <div className="col-span-3 text-center py-16 text-muted-foreground"><Package className="w-10 h-10 mx-auto mb-2 opacity-30" /><p>No kits yet</p></div>
-            ) : (kits as any[]).map((kit: any) => (
+            ) : safeKits.map((kit: any) => (
               <Card key={kit.id}>
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between">
@@ -107,8 +111,8 @@ export default function KitsPage() {
               <Table>
                 <TableHeader><TableRow><TableHead>Issue No</TableHead><TableHead>Kit</TableHead><TableHead>Patient</TableHead><TableHead>Date</TableHead><TableHead className="text-right">Cost</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
                 <TableBody>
-                  {(kitIssues as any[]).length === 0 ? <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No kit issues yet</TableCell></TableRow>
-                    : (kitIssues as any[]).map((iss: any) => (
+                  {safeKitIssues.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No kit issues yet</TableCell></TableRow>
+                    : safeKitIssues.map((iss: any) => (
                       <TableRow key={iss.id}>
                         <TableCell className="font-mono text-xs">{iss.issueNo}</TableCell>
                         <TableCell>{iss.kitName}</TableCell>
@@ -148,7 +152,7 @@ export default function KitsPage() {
                   <div className="col-span-5">
                     <Select value={item.medicineId} onValueChange={v => updateKitItem(idx, "medicineId", v)}>
                       <SelectTrigger className="h-8"><SelectValue placeholder="Select medicine" /></SelectTrigger>
-                      <SelectContent className="max-h-48">{(medicines as any[]).map((m: any) => <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>)}</SelectContent>
+                      <SelectContent className="max-h-48">{safeMedicines.map((m: any) => <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                   <div className="col-span-2"><Input className="h-8" type="number" min={1} value={item.quantity} onChange={e => updateKitItem(idx, "quantity", parseInt(e.target.value) || 1)} placeholder="Qty" /></div>
@@ -174,7 +178,7 @@ export default function KitsPage() {
             <div><Label>Patient</Label>
               <Select value={issueForm.patientId} onValueChange={v => setIssueForm(f => ({ ...f, patientId: v }))}>
                 <SelectTrigger><SelectValue placeholder="Select patient (optional)" /></SelectTrigger>
-                <SelectContent className="max-h-48">{(patients as any[]).map((p: any) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}</SelectContent>
+                <SelectContent className="max-h-48">{safePatients.map((p: any) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div><Label>Notes</Label><Input value={issueForm.notes} onChange={e => setIssueForm(f => ({ ...f, notes: e.target.value }))} /></div>
