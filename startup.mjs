@@ -67,50 +67,49 @@ async function runMigration(client) {
 }
 
 async function seedAdmin(client) {
-  // Ensure default entity exists
-  const insertEntitySQL = `INSERT INTO entities (name, type, email, created_at)
-     VALUES ($1, 'hospital', 'abinashsingh@gmail.com', now())
-     ON CONFLICT (name) DO NOTHING
-     RETURNING id`;
-  const insertEntityParams = ["Hope NeuroTrauma & MultiSpeciality Hospital"];
-
-  let entityRes;
-  try {
-    entityRes = await client.query(insertEntitySQL, insertEntityParams);
-  } catch (err) {
-    console.error("\n[startup] ========== SEED FAILED (INSERT ENTITY) ==========");
-    console.error("[startup] Error Type:", err.constructor.name);
-    console.error("[startup] Error Message:", err.message);
-    console.error("[startup] PostgreSQL Code:", err.code);
-    console.error("[startup] PostgreSQL Detail:", err.detail);
-    console.error("[startup] PostgreSQL Hint:", err.hint);
-    console.error("[startup] PostgreSQL Constraint:", err.constraint);
-    console.error("[startup] PostgreSQL Table:", err.table);
-    console.error("[startup] PostgreSQL Schema:", err.schema);
-    console.error("[startup] Query SQL:", insertEntitySQL);
-    console.error("[startup] Query Params:", insertEntityParams);
-    console.error("[startup] Stack Trace:");
-    console.error(err.stack);
-    if (err.cause) {
-      console.error("[startup] Underlying Cause:");
-      console.error(err.cause);
-    }
-    console.error("[startup] Full Error Object:");
-    console.dir(err, { depth: null });
-    console.error("[startup] ===================================================\n");
-    throw err;
-  }
+  // Ensure default entity exists — safe SELECT-then-INSERT (no constraint dependency)
+  const entityName = "Hope NeuroTrauma & MultiSpeciality Hospital";
 
   let entityId;
-  if (entityRes.rows.length > 0) {
-    entityId = entityRes.rows[0].id;
-    console.log(`[startup] Default entity created (id=${entityId})`);
+
+  // Step 1: Try to find existing entity
+  const existingRes = await client.query(
+    `SELECT id FROM entities WHERE name = $1`,
+    [entityName]
+  );
+
+  if (existingRes.rows.length > 0) {
+    entityId = existingRes.rows[0].id;
+    console.log(`[startup] Default entity found (id=${entityId})`);
   } else {
-    const res = await client.query(
-      `SELECT id FROM entities WHERE name = $1`,
-      ["Hope NeuroTrauma & MultiSpeciality Hospital"]
-    );
-    entityId = res.rows[0].id;
+    // Step 2: Entity doesn't exist, insert it
+    try {
+      const insertRes = await client.query(
+        `INSERT INTO entities (name, type, email, created_at)
+         VALUES ($1, 'hospital', 'abinashsingh@gmail.com', now())
+         RETURNING id`,
+        [entityName]
+      );
+      entityId = insertRes.rows[0].id;
+      console.log(`[startup] Default entity created (id=${entityId})`);
+    } catch (err) {
+      // Handle edge case: another startup process inserted it between our SELECT and INSERT
+      if (err.code === '23505') {
+        // Unique constraint violation - try SELECT again
+        const retryRes = await client.query(
+          `SELECT id FROM entities WHERE name = $1`,
+          [entityName]
+        );
+        if (retryRes.rows.length > 0) {
+          entityId = retryRes.rows[0].id;
+          console.log(`[startup] Default entity created by concurrent process (id=${entityId})`);
+        } else {
+          throw new Error(`[startup] Failed to create or find default entity after duplicate key error`);
+        }
+      } else {
+        throw err;
+      }
+    }
   }
 
   // Check if admin already exists
