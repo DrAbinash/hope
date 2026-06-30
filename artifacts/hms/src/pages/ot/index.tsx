@@ -202,7 +202,7 @@ export default function OtPage() {
       if (!newB.procedureName) throw new Error("Procedure required");
       if (!newB.procedureCharge) throw new Error("Procedure charge required");
       const r = await fetch("/api/ot-bookings", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           patientId: Number(newB.patientId),
           entityId: Number(newB.entityId) || null,
@@ -233,7 +233,7 @@ export default function OtPage() {
   const updateBooking = useMutation({
     mutationFn: async ({ id, body }: { id: number; body: any }) => {
       const r = await fetch(`/api/ot-bookings/${id}`, {
-        method: "PUT", headers: { "Content-Type": "application/json" },
+        method: "PUT", credentials: "include", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       if (!r.ok) throw new Error("Failed");
@@ -249,7 +249,7 @@ export default function OtPage() {
     mutationFn: async () => {
       if (!showBill) throw new Error("No booking");
       const r = await fetch(`/api/ot-bookings/${showBill.id}/bill`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           paidAmount: Number(billPaid) || 0,
           paymentMode: billMode,

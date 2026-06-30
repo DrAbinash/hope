@@ -21,14 +21,16 @@ const DISPOSAL_REASONS = ["expired", "damaged", "recalled", "contaminated", "det
 
 async function fetchLosses(status?: string) {
   const p = status ? `?status=${status}` : "";
-  const r = await fetch(`/api/pharmacy/expiry-loss${p}`);
+  const r = await fetch(`/api/pharmacy/expiry-loss${p}`, { credentials: "include" });
   if (!r.ok) throw new Error("Failed");
-  return r.json();
+  const data = await r.json();
+  return Array.isArray(data) ? data : [];
 }
 async function fetchMedicines() {
-  const r = await fetch("/api/pharmacy/medicines?limit=500");
+  const r = await fetch("/api/pharmacy/medicines?limit=500", { credentials: "include" });
   if (!r.ok) return [];
-  return r.json();
+  const data = await r.json();
+  return Array.isArray(data) ? data : [];
 }
 
 export default function ExpiryLossPage() {
@@ -39,21 +41,23 @@ export default function ExpiryLossPage() {
 
   const { data: losses = [], isLoading } = useQuery({ queryKey: ["expiry-losses", filterStatus], queryFn: () => fetchLosses(filterStatus || undefined) });
   const { data: medicines = [] } = useQuery({ queryKey: ["medicines-list"], queryFn: fetchMedicines });
+  const safeLosses = Array.isArray(losses) ? losses : [];
+  const safeMedicines = Array.isArray(medicines) ? medicines : [];
 
   const addLoss = useMutation({
-    mutationFn: async (d: any) => { const r = await fetch("/api/pharmacy/expiry-loss", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) }); if (!r.ok) throw new Error("Failed"); return r.json(); },
+    mutationFn: async (d: any) => { const r = await fetch("/api/pharmacy/expiry-loss", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(d) }); if (!r.ok) throw new Error("Failed"); return r.json(); },
     onSuccess: () => { toast.success("Loss entry created"); qc.invalidateQueries({ queryKey: ["expiry-losses"] }); setShowAdd(false); setForm({ medicineId: "", medicineName: "", batchNo: "", expiryDate: "", quantity: "", disposalReason: "expired", disposalMethod: "incineration", notes: "" }); },
     onError: () => toast.error("Failed"),
   });
 
   const approveLoss = useMutation({
-    mutationFn: async (id: number) => { const r = await fetch(`/api/pharmacy/expiry-loss/${id}/approve`, { method: "PUT" }); if (!r.ok) throw new Error("Failed"); return r.json(); },
+    mutationFn: async (id: number) => { const r = await fetch(`/api/pharmacy/expiry-loss/${id}/approve`, { method: "PUT", credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); },
     onSuccess: () => { toast.success("Loss approved — stock decremented"); qc.invalidateQueries({ queryKey: ["expiry-losses"] }); },
     onError: () => toast.error("Failed"),
   });
 
-  const totalLoss = (losses as any[]).reduce((s, l) => s + parseFloat(l.lossValue ?? "0"), 0);
-  const pendingCount = (losses as any[]).filter((l: any) => l.status === "pending").length;
+  const totalLoss = safeLosses.reduce((s, l) => s + parseFloat(l.lossValue ?? "0"), 0);
+  const pendingCount = safeLosses.filter((l: any) => l.status === "pending").length;
 
   return (
     <div className="space-y-6">

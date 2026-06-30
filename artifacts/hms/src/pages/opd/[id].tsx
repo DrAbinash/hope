@@ -145,6 +145,7 @@ export default function OPDDetail() {
       try {
         const res = await fetch("/api/prescription-safety", {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             patientId: visit?.patientId,
@@ -166,7 +167,7 @@ export default function OPDDetail() {
   const handleGenerateAiDraft = async () => {
     setIsAiLoading(true);
     try {
-      const res = await fetch(`/api/opd/${id}/ai-draft`);
+      const res = await fetch(`/api/opd/${id}/ai-draft`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to compile AI draft");
       const data = await res.json();
 
@@ -265,6 +266,7 @@ export default function OPDDetail() {
     try {
       const res = await fetch(`/api/opd/${id}/convert-to-ipd`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...ipdForm, wardId: parseInt(ipdForm.wardId), bedId: parseInt(ipdForm.bedId), consultantDoctorId: ipdForm.consultantDoctorId ? parseInt(ipdForm.consultantDoctorId) : undefined }),
       });

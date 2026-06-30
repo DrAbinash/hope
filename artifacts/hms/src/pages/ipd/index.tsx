@@ -93,7 +93,7 @@ export default function IPDPage() {
     mutationFn: async () => {
       if (!transferFor) throw new Error("No admission");
       const r = await fetch(`/api/ipd/${transferFor.id}/transfer`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ wardId: Number(tWardId), bedId: Number(tBedId), reason: tReason || null }),
       });
       if (!r.ok) throw new Error((await r.json()).error || "Failed");
