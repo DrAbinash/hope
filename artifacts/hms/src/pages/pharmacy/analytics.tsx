@@ -15,10 +15,10 @@ const today = new Date().toISOString().slice(0, 10);
 const thirtyAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
 const ninetyAgo = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
 
-async function fetchDeadStock(days: number) { const r = await fetch(`/api/pharmacy/analytics/dead-stock?days=${days}`); if (!r.ok) throw new Error("Failed"); return r.json(); }
-async function fetchFastMoving(days: number) { const r = await fetch(`/api/pharmacy/analytics/fast-moving?days=${days}&limit=20`); if (!r.ok) throw new Error("Failed"); return r.json(); }
-async function fetchAntibiotics(from: string, to: string) { const r = await fetch(`/api/pharmacy/analytics/antibiotic-usage?fromDate=${from}&toDate=${to}`); if (!r.ok) throw new Error("Failed"); return r.json(); }
-async function fetchMargin() { const r = await fetch("/api/pharmacy/analytics/margin-check"); if (!r.ok) throw new Error("Failed"); return r.json(); }
+async function fetchDeadStock(days: number) { const r = await fetch(`/api/pharmacy/analytics/dead-stock?days=${days}`, { credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); }
+async function fetchFastMoving(days: number) { const r = await fetch(`/api/pharmacy/analytics/fast-moving?days=${days}&limit=20`, { credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); }
+async function fetchAntibiotics(from: string, to: string) { const r = await fetch(`/api/pharmacy/analytics/antibiotic-usage?fromDate=${from}&toDate=${to}`, { credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); }
+async function fetchMargin() { const r = await fetch("/api/pharmacy/analytics/margin-check", { credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); }
 
 export default function PharmacyAnalyticsPage() {
   const [deadDays, setDeadDays] = useState(90);
@@ -31,10 +31,11 @@ export default function PharmacyAnalyticsPage() {
   const { data: antibiotics } = useQuery({ queryKey: ["antibiotic-usage", abFrom, abTo], queryFn: () => fetchAntibiotics(abFrom, abTo) });
   const { data: margin = [] } = useQuery({ queryKey: ["margin-check"], queryFn: fetchMargin });
 
-  const belowMargin = (margin as any[]).filter((m: any) => m.below_min_margin);
-  const deadItems: any[] = dead?.items ?? [];
-  const fastItems: any[] = fast?.items ?? [];
-  const abItems: any[] = antibiotics?.items ?? [];
+  const safeMargin = Array.isArray(margin) ? margin : [];
+  const deadItems: any[] = Array.isArray(dead?.items) ? dead.items : [];
+  const fastItems: any[] = Array.isArray(fast?.items) ? fast.items : [];
+  const abItems: any[] = Array.isArray(antibiotics?.items) ? antibiotics.items : [];
+  const belowMargin = safeMargin.filter((m: any) => m.below_min_margin);
 
   const totalDeadValue = deadItems.reduce((s, i) => s + parseFloat(i.blocked_value ?? "0"), 0);
 
@@ -174,8 +175,8 @@ export default function PharmacyAnalyticsPage() {
               <Table>
                 <TableHeader><TableRow><TableHead>Medicine</TableHead><TableHead className="text-right">Purchase Rate</TableHead><TableHead className="text-right">Sale Rate</TableHead><TableHead className="text-right">MRP</TableHead><TableHead className="text-right">Actual Margin</TableHead><TableHead className="text-right">Min Margin</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
                 <TableBody>
-                  {(margin as any[]).length === 0 ? <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No data</TableCell></TableRow>
-                    : (margin as any[]).map((item: any, i: number) => (
+                  {safeMargin.length === 0 ? <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No data</TableCell></TableRow>
+                    : safeMargin.map((item: any, i: number) => (
                       <TableRow key={i} className={item.below_min_margin ? "bg-red-50/40" : ""}>
                         <TableCell className="font-medium">{item.name}</TableCell>
                         <TableCell className="text-right">₹{Number(item.purchase_rate).toFixed(2)}</TableCell>
