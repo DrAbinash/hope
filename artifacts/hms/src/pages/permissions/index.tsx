@@ -123,7 +123,11 @@ function RolePermissionsPanel() {
 
   const { data, isLoading } = useQuery<Record<string, boolean>>({
     queryKey: ["/api/permissions/role", role],
-    queryFn: () => fetch(`/api/permissions/role/${role}`).then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/permissions/role/${role}`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch role permissions");
+      return r.json();
+    },
   });
 
   useEffect(() => {
@@ -206,11 +210,16 @@ function UserOverridesPanel() {
 
   const { data: employees } = useQuery<Employee[]>({
     queryKey: ["/api/employees"],
-    queryFn: () => fetch("/api/employees").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/employees", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch employees");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
   const filteredEmps = useMemo(() => {
-    const list = (employees || []).filter((e) => e.isActive);
+    const list = (Array.isArray(employees) ? employees : []).filter((e) => e.isActive);
     const q = empSearch.toLowerCase();
     if (!q) return list;
     return list.filter((e) =>
