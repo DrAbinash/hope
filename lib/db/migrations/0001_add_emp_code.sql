@@ -35,8 +35,8 @@ BEGIN
       WHERE emp_code IS NULL;
     END IF;
 
-    -- Now create the unique index
-    CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS "idx_employees_emp_code"
+    -- Now create the unique index (CONCURRENTLY removed - can't use inside transaction)
+    CREATE UNIQUE INDEX IF NOT EXISTS "idx_employees_emp_code"
     ON "employees"("emp_code");
   END IF;
 END $$;
