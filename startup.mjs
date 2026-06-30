@@ -43,19 +43,63 @@ async function runMigration(client) {
   const sqlPath = join(__dirname, "lib/db/migrations/0000_baseline.sql");
   const sql = readFileSync(sqlPath, "utf8");
   console.log("[startup] Running baseline migration...");
-  await client.query(sql);
-  console.log("[startup] Migration complete");
+  try {
+    await client.query(sql);
+    console.log("[startup] Migration complete");
+  } catch (err) {
+    console.error("\n[startup] ========== MIGRATION FAILED ==========");
+    console.error("[startup] Error Type:", err.constructor.name);
+    console.error("[startup] Error Message:", err.message);
+    console.error("[startup] PostgreSQL Code:", err.code);
+    console.error("[startup] PostgreSQL Detail:", err.detail);
+    console.error("[startup] PostgreSQL Hint:", err.hint);
+    console.error("[startup] Stack Trace:");
+    console.error(err.stack);
+    if (err.cause) {
+      console.error("[startup] Underlying Cause:");
+      console.error(err.cause);
+    }
+    console.error("[startup] Full Error Object:");
+    console.dir(err, { depth: null });
+    console.error("[startup] ==========================================\n");
+    throw err;
+  }
 }
 
 async function seedAdmin(client) {
   // Ensure default entity exists
-  const entityRes = await client.query(
-    `INSERT INTO entities (name, type, email, created_at)
+  const insertEntitySQL = `INSERT INTO entities (name, type, email, created_at)
      VALUES ($1, 'hospital', 'abinashsingh@gmail.com', now())
      ON CONFLICT (name) DO NOTHING
-     RETURNING id`,
-    ["Hope NeuroTrauma & MultiSpeciality Hospital"]
-  );
+     RETURNING id`;
+  const insertEntityParams = ["Hope NeuroTrauma & MultiSpeciality Hospital"];
+
+  let entityRes;
+  try {
+    entityRes = await client.query(insertEntitySQL, insertEntityParams);
+  } catch (err) {
+    console.error("\n[startup] ========== SEED FAILED (INSERT ENTITY) ==========");
+    console.error("[startup] Error Type:", err.constructor.name);
+    console.error("[startup] Error Message:", err.message);
+    console.error("[startup] PostgreSQL Code:", err.code);
+    console.error("[startup] PostgreSQL Detail:", err.detail);
+    console.error("[startup] PostgreSQL Hint:", err.hint);
+    console.error("[startup] PostgreSQL Constraint:", err.constraint);
+    console.error("[startup] PostgreSQL Table:", err.table);
+    console.error("[startup] PostgreSQL Schema:", err.schema);
+    console.error("[startup] Query SQL:", insertEntitySQL);
+    console.error("[startup] Query Params:", insertEntityParams);
+    console.error("[startup] Stack Trace:");
+    console.error(err.stack);
+    if (err.cause) {
+      console.error("[startup] Underlying Cause:");
+      console.error(err.cause);
+    }
+    console.error("[startup] Full Error Object:");
+    console.dir(err, { depth: null });
+    console.error("[startup] ===================================================\n");
+    throw err;
+  }
 
   let entityId;
   if (entityRes.rows.length > 0) {
@@ -113,6 +157,24 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("[startup] FATAL:", err.message);
+  console.error("\n========== STARTUP FATAL ERROR ==========");
+  console.error("Error Type:", err.constructor.name);
+  console.error("Error Message:", err.message);
+  if (err.code) console.error("Error Code:", err.code);
+  if (err.detail) console.error("Error Detail:", err.detail);
+  if (err.hint) console.error("Error Hint:", err.hint);
+  if (err.constraint) console.error("Constraint:", err.constraint);
+  if (err.table) console.error("Table:", err.table);
+  if (err.schema) console.error("Schema:", err.schema);
+  console.error("\nStack Trace:");
+  console.error(err.stack);
+  if (err.cause) {
+    console.error("\nUnderlying Cause:");
+    console.error(err.cause);
+    if (err.cause.stack) console.error(err.cause.stack);
+  }
+  console.error("\nFull Error Object:");
+  console.dir(err, { depth: null });
+  console.error("========================================\n");
   process.exit(1);
 });
