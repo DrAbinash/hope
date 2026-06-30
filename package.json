@@ -9,6 +9,10 @@
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },
   "private": true,
+  "dependencies": {
+    "pg": "^8.20.0",
+    "bcryptjs": "^3.0.3"
+  },
   "devDependencies": {
     "typescript": "~5.9.2",
     "prettier": "^3.8.1"

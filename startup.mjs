@@ -1,14 +1,19 @@
 /**
  * startup.mjs — runs before the app server on every deployment.
- * Uses only `pg` (always available) — no drizzle-kit binary needed.
+ * Auto-discovers and runs ALL migrations sequentially (self-healing).
+ * Validates schema completeness before allowing app to start.
+ *
  * 1. Waits for Postgres to be ready
- * 2. Runs baseline migration (CREATE TABLE IF NOT EXISTS — idempotent)
- * 3. Seeds the default entity + admin account
+ * 2. Creates schema_versions tracking table (idempotent)
+ * 3. Auto-discovers migrations in lib/db/migrations/
+ * 4. Runs any unapplied migrations in order
+ * 5. Validates schema matches code requirements
+ * 6. Seeds the default entity + admin account
  */
 
 import pg from "pg";
 import bcrypt from "bcryptjs";
-import { readFileSync } from "fs";
+import { readFileSync, readdirSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 
@@ -39,34 +44,173 @@ async function waitForDb(retries = 15, delayMs = 3000) {
   }
 }
 
-async function runMigration(client) {
-  const sqlPath = join(__dirname, "lib/db/migrations/0000_baseline.sql");
-  const sql = readFileSync(sqlPath, "utf8");
-  console.log("[startup] Running baseline migration...");
-  await client.query(sql);
-  console.log("[startup] Migration complete");
+async function initMigrationTracker(client) {
+  const trackerSql = `
+    CREATE TABLE IF NOT EXISTS schema_versions (
+      id serial PRIMARY KEY,
+      version text NOT NULL UNIQUE,
+      applied_at timestamp DEFAULT now() NOT NULL,
+      execution_time_ms integer
+    );
+  `;
+  try {
+    await client.query(trackerSql);
+  } catch (err) {
+    console.error("[startup] Failed to create schema_versions table:", err.message);
+    throw err;
+  }
+}
+
+async function getAppliedMigrations(client) {
+  const result = await client.query(
+    `SELECT version FROM schema_versions ORDER BY version ASC`
+  );
+  return new Set(result.rows.map(r => r.version));
+}
+
+async function discoverMigrations() {
+  const migrationsDir = join(__dirname, "lib/db/migrations");
+  const files = readdirSync(migrationsDir)
+    .filter(f => f.endsWith(".sql"))
+    .sort();
+  return files;
+}
+
+async function runMigrations(client) {
+  console.log("[startup] Initializing migration tracker...");
+  await initMigrationTracker(client);
+
+  const appliedVersions = await getAppliedMigrations(client);
+  const allMigrations = await discoverMigrations();
+  const pendingMigrations = allMigrations.filter(m => !appliedVersions.has(m));
+
+  if (pendingMigrations.length === 0) {
+    console.log("[startup] All migrations already applied");
+    return;
+  }
+
+  console.log(`[startup] Found ${pendingMigrations.length} pending migration(s)`);
+
+  for (const migrationFile of pendingMigrations) {
+    const migrationPath = join(__dirname, "lib/db/migrations", migrationFile);
+    const sql = readFileSync(migrationPath, "utf8");
+
+    console.log(`[startup] Running migration: ${migrationFile}`);
+    const startTime = Date.now();
+
+    try {
+      await client.query(sql);
+      const executionTime = Date.now() - startTime;
+
+      await client.query(
+        `INSERT INTO schema_versions (version, execution_time_ms) VALUES ($1, $2)`,
+        [migrationFile, executionTime]
+      );
+
+      console.log(`[startup]   ✓ ${migrationFile} (${executionTime}ms)`);
+    } catch (err) {
+      console.error("\n[startup] ========== MIGRATION FAILED ==========");
+      console.error(`[startup] Migration: ${migrationFile}`);
+      console.error("[startup] Error Type:", err.constructor.name);
+      console.error("[startup] Error Message:", err.message);
+      console.error("[startup] PostgreSQL Code:", err.code);
+      console.error("[startup] PostgreSQL Detail:", err.detail);
+      console.error("[startup] PostgreSQL Hint:", err.hint);
+      console.error("[startup] Stack Trace:");
+      console.error(err.stack);
+      if (err.cause) {
+        console.error("[startup] Underlying Cause:");
+        console.error(err.cause);
+      }
+      console.error("[startup] ==========================================\n");
+      throw err;
+    }
+  }
+
+  console.log("[startup] All migrations completed successfully");
+}
+
+async function validateSchema(client) {
+  console.log("[startup] Validating schema completeness...");
+
+  const requiredColumns = {
+    entities: ['id', 'name', 'type', 'email', 'created_at', 'updated_at'],
+    employees: ['id', 'entity_id', 'emp_code', 'username', 'name', 'email', 'role', 'department', 'pin_hash', 'is_active', 'created_at', 'updated_at'],
+  };
+
+  const missingColumns = {};
+
+  for (const [table, columns] of Object.entries(requiredColumns)) {
+    const result = await client.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = $1`,
+      [table]
+    );
+    const dbColumns = new Set(result.rows.map(r => r.column_name));
+    const missing = columns.filter(c => !dbColumns.has(c));
+
+    if (missing.length > 0) {
+      missingColumns[table] = missing;
+    }
+  }
+
+  if (Object.keys(missingColumns).length > 0) {
+    console.error("\n[startup] ========== SCHEMA VALIDATION FAILED ==========");
+    console.error("[startup] Missing columns detected:");
+    for (const [table, columns] of Object.entries(missingColumns)) {
+      console.error(`[startup]   Table "${table}": ${columns.join(', ')}`);
+    }
+    console.error("[startup] Action: Ensure all migrations in lib/db/migrations/ are created and applied");
+    console.error("[startup] ===================================================\n");
+    throw new Error(`Schema validation failed: missing columns in ${Object.keys(missingColumns).join(', ')}`);
+  }
+
+  console.log("[startup] ✓ Schema validation passed");
 }
 
 async function seedAdmin(client) {
-  // Ensure default entity exists
-  const entityRes = await client.query(
-    `INSERT INTO entities (name, type, owner, email, created_at)
-     VALUES ($1, 'hospital', 'Abinash Singh', 'abinashsingh@gmail.com', now())
-     ON CONFLICT (name) DO NOTHING
-     RETURNING id`,
-    ["Hope NeuroTrauma & MultiSpeciality Hospital"]
-  );
+  // Ensure default entity exists — safe SELECT-then-INSERT (no constraint dependency)
+  const entityName = "Hope NeuroTrauma & MultiSpeciality Hospital";
 
   let entityId;
-  if (entityRes.rows.length > 0) {
-    entityId = entityRes.rows[0].id;
-    console.log(`[startup] Default entity created (id=${entityId})`);
+
+  // Step 1: Try to find existing entity
+  const existingRes = await client.query(
+    `SELECT id FROM entities WHERE name = $1`,
+    [entityName]
+  );
+
+  if (existingRes.rows.length > 0) {
+    entityId = existingRes.rows[0].id;
+    console.log(`[startup] Default entity found (id=${entityId})`);
   } else {
-    const res = await client.query(
-      `SELECT id FROM entities WHERE name = $1`,
-      ["Hope NeuroTrauma & MultiSpeciality Hospital"]
-    );
-    entityId = res.rows[0].id;
+    // Step 2: Entity doesn't exist, insert it
+    try {
+      const insertRes = await client.query(
+        `INSERT INTO entities (name, type, email, created_at)
+         VALUES ($1, 'hospital', 'abinashsingh@gmail.com', now())
+         RETURNING id`,
+        [entityName]
+      );
+      entityId = insertRes.rows[0].id;
+      console.log(`[startup] Default entity created (id=${entityId})`);
+    } catch (err) {
+      // Handle edge case: another startup process inserted it between our SELECT and INSERT
+      if (err.code === '23505') {
+        // Unique constraint violation - try SELECT again
+        const retryRes = await client.query(
+          `SELECT id FROM entities WHERE name = $1`,
+          [entityName]
+        );
+        if (retryRes.rows.length > 0) {
+          entityId = retryRes.rows[0].id;
+          console.log(`[startup] Default entity created by concurrent process (id=${entityId})`);
+        } else {
+          throw new Error(`[startup] Failed to create or find default entity after duplicate key error`);
+        }
+      } else {
+        throw err;
+      }
+    }
   }
 
   // Check if admin already exists
@@ -103,7 +247,8 @@ async function main() {
   await client.connect();
 
   try {
-    await runMigration(client);
+    await runMigrations(client);
+    await validateSchema(client);
     await seedAdmin(client);
   } finally {
     await client.end();
@@ -113,6 +258,24 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("[startup] FATAL:", err.message);
+  console.error("\n========== STARTUP FATAL ERROR ==========");
+  console.error("Error Type:", err.constructor.name);
+  console.error("Error Message:", err.message);
+  if (err.code) console.error("Error Code:", err.code);
+  if (err.detail) console.error("Error Detail:", err.detail);
+  if (err.hint) console.error("Error Hint:", err.hint);
+  if (err.constraint) console.error("Constraint:", err.constraint);
+  if (err.table) console.error("Table:", err.table);
+  if (err.schema) console.error("Schema:", err.schema);
+  console.error("\nStack Trace:");
+  console.error(err.stack);
+  if (err.cause) {
+    console.error("\nUnderlying Cause:");
+    console.error(err.cause);
+    if (err.cause.stack) console.error(err.cause.stack);
+  }
+  console.error("\nFull Error Object:");
+  console.dir(err, { depth: null });
+  console.error("========================================\n");
   process.exit(1);
 });

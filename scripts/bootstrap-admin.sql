@@ -7,12 +7,23 @@
 
 BEGIN;
 
--- 1. Create default entity (the hospital)
-INSERT INTO entities (name, type, owner, email, created_at)
-VALUES ('Hope NeuroTrauma & MultiSpeciality Hospital', 'hospital', 'Abinash Singh', 'abinashsingh@gmail.com', now())
-ON CONFLICT (name) DO NOTHING;
+-- 1. Ensure default entity exists (the hospital)
+--    First try to find it, then insert if missing
+WITH entity_upsert AS (
+  SELECT id, name FROM entities
+  WHERE name = 'Hope NeuroTrauma & MultiSpeciality Hospital'
+  UNION ALL
+  INSERT INTO entities (name, type, email, created_at)
+  SELECT 'Hope NeuroTrauma & MultiSpeciality Hospital', 'hospital', 'abinashsingh@gmail.com', now()
+  WHERE NOT EXISTS (
+    SELECT 1 FROM entities
+    WHERE name = 'Hope NeuroTrauma & MultiSpeciality Hospital'
+  )
+  RETURNING id, name
+)
+SELECT id INTO entity_id_var FROM entity_upsert LIMIT 1;
 
--- 2. Create admin employee
+-- 2. Ensure admin employee exists
 --    username: abinashsingh   email: abinashsingh@gmail.com   role: admin
 --    PIN: 1234  →  pin_hash below (bcrypt cost 12)
 INSERT INTO employees (
@@ -28,7 +39,7 @@ INSERT INTO employees (
   created_at
 )
 SELECT
-  e.id,
+  (SELECT id FROM entities WHERE name = 'Hope NeuroTrauma & MultiSpeciality Hospital'),
   'ADMIN001',
   'Abinash Singh',
   'abinashsingh',
@@ -38,14 +49,15 @@ SELECT
   '$2b$12$e5ftWx/lif0c0JS6UBzyg.bkQ/vS/YZfeZy8vofvw5XPir8jNHetm',
   true,
   now()
-FROM entities e
-WHERE e.name = 'Hope NeuroTrauma & MultiSpeciality Hospital'
-LIMIT 1
-ON CONFLICT (username) DO UPDATE
-  SET pin_hash  = EXCLUDED.pin_hash,
-      email     = EXCLUDED.email,
-      role      = EXCLUDED.role,
-      is_active = true;
+WHERE NOT EXISTS (
+  SELECT 1 FROM employees WHERE username = 'abinashsingh'
+);
+
+-- If admin exists but is inactive, reactivate it
+UPDATE employees
+SET is_active = true,
+    pin_hash = '$2b$12$e5ftWx/lif0c0JS6UBzyg.bkQ/vS/YZfeZy8vofvw5XPir8jNHetm'
+WHERE username = 'abinashsingh' AND is_active = false;
 
 COMMIT;
 
