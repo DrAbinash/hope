@@ -7,7 +7,7 @@
 -- Entities / multi-tenancy
 CREATE TABLE IF NOT EXISTS "entities" (
   "id" serial PRIMARY KEY NOT NULL,
-  "name" text NOT NULL,
+  "name" text NOT NULL UNIQUE,
   "type" text NOT NULL DEFAULT 'hospital',
   "address" text,
   "phone" text,
