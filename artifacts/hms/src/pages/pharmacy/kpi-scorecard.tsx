@@ -13,8 +13,8 @@ export default function KpiScorecardPage() {
   useEffect(() => { load(); }, [days]);
   async function load() {
     const [d, t] = await Promise.all([
-      fetch(`/api/pharmacy/kpi-scorecard?days=${days}`, { credentials: "include" }).then(r => r.json()),
-      fetch(`/api/pharmacy/kpi-scorecard/trend?days=${days}`, { credentials: "include" }).then(r => r.json()),
+      (async () => { const r = await fetch(`/api/pharmacy/kpi-scorecard?days=${days}`, { credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); })(),
+      (async () => { const r = await fetch(`/api/pharmacy/kpi-scorecard/trend?days=${days}`, { credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); })(),
     ]);
     setData(d);
     setTrend(Array.isArray(t) ? t.map(x => ({ ...x, day: x.day?.slice(5), sales_value: Number(x.sales_value) })) : []);

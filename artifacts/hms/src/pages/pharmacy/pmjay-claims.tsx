@@ -31,9 +31,9 @@ export default function PmjayClaimsPage() {
   useEffect(() => { load(); }, [filter]);
   async function load() {
     const [c, p, s] = await Promise.all([
-      fetch(`/api/pharmacy/pmjay/claims?status=${filter}`, { credentials: "include" }).then(r => r.json()),
-      fetch("/api/pharmacy/pmjay/packages", { credentials: "include" }).then(r => r.json()),
-      fetch("/api/pharmacy/pmjay/summary", { credentials: "include" }).then(r => r.json()),
+      (async () => { const r = await fetch(`/api/pharmacy/pmjay/claims?status=${filter}`, { credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); })(),
+      (async () => { const r = await fetch("/api/pharmacy/pmjay/packages", { credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); })(),
+      (async () => { const r = await fetch("/api/pharmacy/pmjay/summary", { credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); })(),
     ]);
     setClaims(Array.isArray(c) ? c : []);
     setPackages(Array.isArray(p) ? p : []);

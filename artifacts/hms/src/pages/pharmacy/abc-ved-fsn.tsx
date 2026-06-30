@@ -23,8 +23,8 @@ export default function AbcVedFsnPage() {
   useEffect(() => { load(); }, [abc, ved, fsn]);
   async function load() {
     const [l, s] = await Promise.all([
-      fetch(`/api/pharmacy/abc-ved-fsn?abc=${abc}&ved=${ved}&fsn=${fsn}`, { credentials: "include" }).then(r => r.json()),
-      fetch("/api/pharmacy/abc-ved-fsn/summary", { credentials: "include" }).then(r => r.json()),
+      (async () => { const r = await fetch(`/api/pharmacy/abc-ved-fsn?abc=${abc}&ved=${ved}&fsn=${fsn}`, { credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); })(),
+      (async () => { const r = await fetch("/api/pharmacy/abc-ved-fsn/summary", { credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); })(),
     ]);
     setList(Array.isArray(l) ? l : []);
     setSummary(Array.isArray(s) ? s : []);
