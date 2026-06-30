@@ -81,38 +81,70 @@ export default function DiagnosticsPage() {
 
   const { data: orders } = useQuery<DiagnosticOrder[]>({
     queryKey: ["/api/diagnostic-orders", tab],
-    queryFn: () => fetch(`/api/diagnostic-orders?type=${tab}`).then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/diagnostic-orders?type=${tab}`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch orders");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
   const { data: patientList } = useQuery<{ patients: Patient[] }>({
     queryKey: ["/api/patients", patientSearch],
-    queryFn: () => fetch(`/api/patients?search=${encodeURIComponent(patientSearch)}`).then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/patients?search=${encodeURIComponent(patientSearch)}`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch patients");
+      return r.json();
+    },
     enabled: patientSearch.length >= 2,
   });
   const { data: doctors } = useQuery<Doctor[]>({
     queryKey: ["/api/doctors"],
-    queryFn: () => fetch("/api/doctors").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/doctors", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch doctors");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
   const { data: heads } = useQuery<BillingHead[]>({
     queryKey: ["/api/billing-heads"],
-    queryFn: () => fetch("/api/billing-heads").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/billing-heads", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch billing heads");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
   const { data: entities } = useQuery<Entity[]>({
     queryKey: ["/api/entities"],
-    queryFn: () => fetch("/api/entities").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/entities", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch entities");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
   const { data: employees } = useQuery<Employee[]>({
     queryKey: ["/api/employees"],
-    queryFn: () => fetch("/api/employees").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/employees", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch employees");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
-  const filteredHeads = useMemo(() => {
-    if (!heads) return [];
-    const cat = tab === "pathology" ? "Pathology" : "Radiology";
-    return heads.filter((h) => h.category === cat);
-  }, [heads, tab]);
+  const safeHeads = Array.isArray(heads) ? heads : [];
+  const safeEmployees = Array.isArray(employees) ? employees : [];
+  const safePatients = Array.isArray(patientList?.patients) ? patientList.patients : [];
 
-  const selectedPatient = (patientList?.patients || []).find((p) => p.id === Number(newOrder.patientId));
-  const cashiers = (employees || []).filter((e) => e.username && ["cashier", "receptionist", "admin"].includes(e.role));
+  const filteredHeads = useMemo(() => {
+    const cat = tab === "pathology" ? "Pathology" : "Radiology";
+    return safeHeads.filter((h) => h.category === cat);
+  }, [safeHeads, tab]);
+
+  const selectedPatient = safePatients.find((p) => p.id === Number(newOrder.patientId));
+  const cashiers = safeEmployees.filter((e) => e.username && ["cashier", "receptionist", "admin"].includes(e.role));
 
   const addItemToOrder = () => {
     if (!pickHead) return;
@@ -139,7 +171,7 @@ export default function DiagnosticsPage() {
       if (!newOrder.patientId) throw new Error("Patient is required");
       if (newOrder.items.length === 0) throw new Error("Add at least one test");
       const r = await fetch("/api/diagnostic-orders", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
         body: JSON.stringify({
           type: tab,
           patientId: Number(newOrder.patientId),
@@ -164,7 +196,7 @@ export default function DiagnosticsPage() {
   const updateOrder = useMutation({
     mutationFn: async ({ id, body }: { id: number; body: any }) => {
       const r = await fetch(`/api/diagnostic-orders/${id}`, {
-        method: "PUT", headers: { "Content-Type": "application/json" },
+        method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include",
         body: JSON.stringify(body),
       });
       if (!r.ok) throw new Error("Failed");
@@ -180,7 +212,7 @@ export default function DiagnosticsPage() {
     mutationFn: async () => {
       if (!showBill) throw new Error("No order");
       const r = await fetch(`/api/diagnostic-orders/${showBill.id}/bill`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
         body: JSON.stringify({
           paidAmount: Number(billPaid) || 0,
           paymentMode: billMode,
@@ -326,9 +358,9 @@ export default function DiagnosticsPage() {
                     <Input className="pl-10" placeholder="Search by name, UHID, or phone..."
                       value={patientSearch} onChange={(e) => setPatientSearch(e.target.value)} />
                   </div>
-                  {patientSearch.length >= 2 && (patientList?.patients || []).length > 0 && (
+                  {patientSearch.length >= 2 && safePatients.length > 0 && (
                     <div className="border rounded-lg divide-y mt-2 max-h-40 overflow-y-auto">
-                      {(patientList?.patients || []).slice(0, 8).map((p) => (
+                      {safePatients.slice(0, 8).map((p) => (
                         <button key={p.id} onClick={() => setNewOrder({ ...newOrder, patientId: String(p.id) })}
                           className="w-full text-left p-2 hover:bg-muted text-sm flex justify-between">
                           <span>{p.name} <span className="text-xs text-muted-foreground">{p.age}{p.gender[0]}</span></span>
@@ -347,7 +379,7 @@ export default function DiagnosticsPage() {
                 <Select value={newOrder.entityId} onValueChange={(v) => setNewOrder({ ...newOrder, entityId: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {(entities || []).map((e) => <SelectItem key={e.id} value={String(e.id)}>{e.name}</SelectItem>)}
+                    {(Array.isArray(entities) ? entities : []).map((e) => <SelectItem key={e.id} value={String(e.id)}>{e.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -356,7 +388,7 @@ export default function DiagnosticsPage() {
                 <Select value={newOrder.doctorId} onValueChange={(v) => setNewOrder({ ...newOrder, doctorId: v })}>
                   <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                   <SelectContent>
-                    {(doctors || []).map((d) => <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>)}
+                    {(Array.isArray(doctors) ? doctors : []).map((d) => <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
