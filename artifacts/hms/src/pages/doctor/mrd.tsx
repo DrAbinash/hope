@@ -45,6 +45,7 @@ function PatientPicker({ value, onChange, label }: { value: Patient | null; onCh
     },
     enabled: debounced.length >= 2,
   });
+  const safePatients = Array.isArray(data?.patients) ? data.patients : [];
   return (
     <div className="relative">
       <Label>{label}</Label>
@@ -55,9 +56,9 @@ function PatientPicker({ value, onChange, label }: { value: Patient | null; onCh
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         placeholder="Search by Reg No., name or phone"
       />
-      {open && debounced.length >= 2 && data?.patients?.length ? (
+      {open && debounced.length >= 2 && safePatients.length ? (
         <div className="absolute z-30 mt-1 w-full bg-popover border rounded-md shadow-md max-h-64 overflow-auto">
-          {data.patients.map((p) => (
+          {safePatients.map((p) => (
             <button
               type="button"
               key={p.id}
