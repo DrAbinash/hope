@@ -86,7 +86,7 @@ const PA_OPTIONS = [
   "No rebound tenderness",
 ];
 
-const INVESTIGATION_TEMPLATES = [
+const DEFAULT_INVESTIGATION_TEMPLATES = [
   "CBC",
   "LFT",
   "KFT",
@@ -101,7 +101,7 @@ const INVESTIGATION_TEMPLATES = [
   "Blood cultures",
 ];
 
-const FOLLOWUP_TEMPLATES = [
+const DEFAULT_FOLLOWUP_TEMPLATES = [
   "Review vitals 4-hourly",
   "Monitor I/O chart",
   "Strict bed rest",
@@ -113,6 +113,33 @@ const FOLLOWUP_TEMPLATES = [
   "Contact doctor if condition worsens",
   "Cardiac monitoring if indicated",
 ];
+
+const DEFAULT_MEDICATION_TEMPLATES = {
+  fever: [
+    { name: "Paracetamol", dose: "1-1-1" },
+    { name: "Ibuprofen", dose: "1-0-1" },
+  ],
+  painAbdomen: [
+    { name: "Omeprazole", dose: "1-0-0" },
+    { name: "Ibuprofen", dose: "1-0-1" },
+    { name: "Dicyclomine", dose: "1-1-1" },
+  ],
+  postOp: [
+    { name: "Paracetamol", dose: "1-1-1" },
+    { name: "Tramadol", dose: "0-0-1" },
+    { name: "Omeprazole", dose: "1-0-0" },
+  ],
+  infection: [
+    { name: "Ceftriaxone", dose: "1-0-1" },
+    { name: "Metronidazole", dose: "1-1-1" },
+    { name: "Paracetamol", dose: "1-1-1" },
+  ],
+  breathlessness: [
+    { name: "Salbutamol", dose: "2-2-2" },
+    { name: "Furosmide", dose: "1-0-0" },
+    { name: "Oxygen", dose: "PRN" },
+  ],
+};
 
 interface ProgressNote {
   id: number;
@@ -187,6 +214,28 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
   const [selectedPA, setSelectedPA] = useState<string[]>([]);
   const [selectedInvestigations, setSelectedInvestigations] = useState<string[]>([]);
   const [selectedFollowup, setSelectedFollowup] = useState<string[]>([]);
+  const [selectedMedicationTemplates, setSelectedMedicationTemplates] = useState<string[]>([]);
+
+  // Editable templates with localStorage persistence
+  const [investigationTemplates, setInvestigationTemplates] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("investigationTemplates");
+      return stored ? JSON.parse(stored) : DEFAULT_INVESTIGATION_TEMPLATES;
+    }
+    return DEFAULT_INVESTIGATION_TEMPLATES;
+  });
+
+  const [followupTemplates, setFollowupTemplates] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("followupTemplates");
+      return stored ? JSON.parse(stored) : DEFAULT_FOLLOWUP_TEMPLATES;
+    }
+    return DEFAULT_FOLLOWUP_TEMPLATES;
+  });
+
+  const [newInvestigation, setNewInvestigation] = useState("");
+  const [newFollowup, setNewFollowup] = useState("");
+  const [showTemplateEditor, setShowTemplateEditor] = useState(false);
 
   const [medName, setMedName] = useState("");
   const [medDose, setMedDose] = useState("");
@@ -306,6 +355,7 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
     setSelectedPA([]);
     setSelectedInvestigations([]);
     setSelectedFollowup([]);
+    setSelectedMedicationTemplates([]);
     setAiGenerated(false);
     setAiDraftInfo(null);
     setAiDraftOriginalValues(null);
@@ -358,6 +408,75 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
       : [...selectedFollowup, followup];
     setSelectedFollowup(updated);
     setForm(f => ({ ...f, followUpInstructions: updated.join("; ") }));
+  };
+
+  const addInvestigationTemplate = () => {
+    if (newInvestigation.trim() && !investigationTemplates.includes(newInvestigation.trim())) {
+      const updated = [...investigationTemplates, newInvestigation.trim()];
+      setInvestigationTemplates(updated);
+      localStorage.setItem("investigationTemplates", JSON.stringify(updated));
+      setNewInvestigation("");
+      toast.success("Investigation template added");
+    }
+  };
+
+  const removeInvestigationTemplate = (inv: string) => {
+    const updated = investigationTemplates.filter(x => x !== inv);
+    setInvestigationTemplates(updated);
+    localStorage.setItem("investigationTemplates", JSON.stringify(updated));
+    setSelectedInvestigations(selectedInvestigations.filter(x => x !== inv));
+    toast.success("Investigation template removed");
+  };
+
+  const addFollowupTemplate = () => {
+    if (newFollowup.trim() && !followupTemplates.includes(newFollowup.trim())) {
+      const updated = [...followupTemplates, newFollowup.trim()];
+      setFollowupTemplates(updated);
+      localStorage.setItem("followupTemplates", JSON.stringify(updated));
+      setNewFollowup("");
+      toast.success("Follow-up template added");
+    }
+  };
+
+  const removeFollowupTemplate = (followup: string) => {
+    const updated = followupTemplates.filter(x => x !== followup);
+    setFollowupTemplates(updated);
+    localStorage.setItem("followupTemplates", JSON.stringify(updated));
+    setSelectedFollowup(selectedFollowup.filter(x => x !== followup));
+    toast.success("Follow-up template removed");
+  };
+
+  const resetTemplatesToDefault = () => {
+    setInvestigationTemplates(DEFAULT_INVESTIGATION_TEMPLATES);
+    localStorage.setItem("investigationTemplates", JSON.stringify(DEFAULT_INVESTIGATION_TEMPLATES));
+    setFollowupTemplates(DEFAULT_FOLLOWUP_TEMPLATES);
+    localStorage.setItem("followupTemplates", JSON.stringify(DEFAULT_FOLLOWUP_TEMPLATES));
+    toast.success("Templates reset to default");
+  };
+
+  const toggleMedicationTemplate = (templateKey: string) => {
+    const updated = selectedMedicationTemplates.includes(templateKey)
+      ? selectedMedicationTemplates.filter(x => x !== templateKey)
+      : [...selectedMedicationTemplates, templateKey];
+    setSelectedMedicationTemplates(updated);
+
+    // Merge medications from selected templates
+    const mergedMeds: { [key: string]: { name: string; dose: string; action: "Added" | "Stopped" | "Modified" } } = {};
+    updated.forEach(key => {
+      const meds = DEFAULT_MEDICATION_TEMPLATES[key as keyof typeof DEFAULT_MEDICATION_TEMPLATES];
+      if (meds) {
+        meds.forEach(med => {
+          mergedMeds[med.name] = { name: med.name, dose: med.dose, action: "Added" };
+        });
+      }
+    });
+
+    const finalMeds = Object.values(mergedMeds);
+    setForm(f => ({ ...f, medicines: finalMeds }));
+
+    if (updated.length > 0) {
+      toast.success(`Merged ${finalMeds.length} medications from ${updated.length} template(s)`);
+    }
   };
 
   const handleOpenEdit = (note: ProgressNote) => {
@@ -661,6 +780,106 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
         )}
       </CardContent>
 
+      {/* Template Editor Dialog */}
+      <Dialog open={showTemplateEditor} onOpenChange={setShowTemplateEditor}>
+        <DialogContent className="max-w-2xl rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Customize Templates</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 text-xs">
+            {/* Investigations Editor */}
+            <div className="space-y-2 border rounded-lg p-3">
+              <Label className="font-semibold">Investigation Templates</Label>
+              <div className="flex gap-2 mb-2">
+                <Input
+                  placeholder="Add new investigation (e.g., MRI Brain)"
+                  value={newInvestigation}
+                  onChange={e => setNewInvestigation(e.target.value)}
+                  onKeyPress={e => e.key === "Enter" && addInvestigationTemplate()}
+                  className="h-8 text-xs"
+                />
+                <Button
+                  type="button"
+                  onClick={addInvestigationTemplate}
+                  className="h-8 bg-slate-800 text-white text-xs rounded-lg"
+                >
+                  Add
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {investigationTemplates.map(inv => (
+                  <Badge key={inv} variant="secondary" className="flex items-center gap-1 text-[10px]">
+                    {inv}
+                    <button
+                      type="button"
+                      onClick={() => removeInvestigationTemplate(inv)}
+                      className="text-red-500 font-bold ml-1 hover:text-red-700"
+                    >
+                      ×
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            {/* Follow-up Editor */}
+            <div className="space-y-2 border rounded-lg p-3">
+              <Label className="font-semibold">Follow-up Templates</Label>
+              <div className="flex gap-2 mb-2">
+                <Input
+                  placeholder="Add new follow-up instruction"
+                  value={newFollowup}
+                  onChange={e => setNewFollowup(e.target.value)}
+                  onKeyPress={e => e.key === "Enter" && addFollowupTemplate()}
+                  className="h-8 text-xs"
+                />
+                <Button
+                  type="button"
+                  onClick={addFollowupTemplate}
+                  className="h-8 bg-slate-800 text-white text-xs rounded-lg"
+                >
+                  Add
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {followupTemplates.map(followup => (
+                  <Badge key={followup} variant="secondary" className="flex items-center gap-1 text-[10px]">
+                    {followup}
+                    <button
+                      type="button"
+                      onClick={() => removeFollowupTemplate(followup)}
+                      className="text-red-500 font-bold ml-1 hover:text-red-700"
+                    >
+                      ×
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={resetTemplatesToDefault}
+              className="w-full text-xs"
+            >
+              Reset to Default Templates
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowTemplateEditor(false)}
+              className="rounded-xl"
+            >
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Add / Edit Dialog */}
       <Dialog open={showAdd || !!editingNote} onOpenChange={(o) => { if (!o) { setShowAdd(false); setEditingNote(null); resetForm(); } }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl">
@@ -922,6 +1141,26 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
             {/* Medicines Changed */}
             <div className="border p-3 rounded-xl space-y-2">
               <Label className="font-semibold">Medicines Changed / Adjusted</Label>
+
+              {/* Medication Quick Select Templates */}
+              <div className="bg-slate-50 dark:bg-slate-900/30 p-2 rounded-lg space-y-1.5 mb-2 border border-slate-200 dark:border-slate-700">
+                <div className="text-[10px] font-semibold text-slate-600 dark:text-slate-400">Quick Select by Condition:</div>
+                <div className="flex flex-wrap gap-1">
+                  {Object.keys(DEFAULT_MEDICATION_TEMPLATES).map(key => (
+                    <Button
+                      key={key}
+                      type="button"
+                      size="sm"
+                      variant={selectedMedicationTemplates.includes(key) ? "default" : "outline"}
+                      onClick={() => toggleMedicationTemplate(key)}
+                      className="h-6 text-xs rounded-lg capitalize"
+                    >
+                      {key.replace(/([A-Z])/g, ' $1').trim()}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
               <div className="flex gap-2">
                 <Input placeholder="Medicine name" value={medName} onChange={e => setMedName(e.target.value)} className="h-8 text-xs" />
                 <Input placeholder="Dose (e.g. 1-0-1)" value={medDose} onChange={e => setMedDose(e.target.value)} className="h-8 text-xs" />
@@ -944,9 +1183,20 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
 
             {/* Investigations with Quick Select */}
             <div className="border p-3 rounded-xl space-y-2">
-              <Label className="font-semibold flex items-center gap-1"><Zap className="w-3.5 h-3.5 text-purple-500" /> Investigations Advised (Quick Select)</Label>
+              <div className="flex items-center justify-between">
+                <Label className="font-semibold flex items-center gap-1"><Zap className="w-3.5 h-3.5 text-purple-500" /> Investigations Advised (Quick Select)</Label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowTemplateEditor(true)}
+                  className="h-6 text-xs text-slate-500 hover:text-slate-700"
+                >
+                  ⚙ Customize
+                </Button>
+              </div>
               <div className="flex flex-wrap gap-1.5 mb-2">
-                {INVESTIGATION_TEMPLATES.map(inv => (
+                {investigationTemplates.map(inv => (
                   <Button
                     key={inv}
                     type="button"
@@ -970,9 +1220,20 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
 
             {/* Follow-up Instructions with Quick Select */}
             <div className="border p-3 rounded-xl space-y-2">
-              <Label className="font-semibold flex items-center gap-1"><Zap className="w-3.5 h-3.5 text-blue-500" /> Follow-Up Instructions (Quick Select)</Label>
+              <div className="flex items-center justify-between">
+                <Label className="font-semibold flex items-center gap-1"><Zap className="w-3.5 h-3.5 text-blue-500" /> Follow-Up Instructions (Quick Select)</Label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowTemplateEditor(true)}
+                  className="h-6 text-xs text-slate-500 hover:text-slate-700"
+                >
+                  ⚙ Customize
+                </Button>
+              </div>
               <div className="flex flex-wrap gap-1.5 mb-2">
-                {FOLLOWUP_TEMPLATES.map(followup => (
+                {followupTemplates.map(followup => (
                   <Button
                     key={followup}
                     type="button"
