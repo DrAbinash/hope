@@ -101,11 +101,13 @@ export function useDocumentManagement(patientId: number | string) {
         formData.append("files", file);
       });
       formData.append("category", category);
-      Object.entries(metadata).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          formData.append(`metadata[${key}]`, String(value));
-        }
-      });
+
+      // Add metadata fields directly to form data
+      if (metadata.description) formData.append("description", metadata.description);
+      if (metadata.tags) formData.append("tags", JSON.stringify(metadata.tags));
+      if (metadata.department) formData.append("department", metadata.department);
+      if (metadata.module) formData.append("module", metadata.module);
+
       return uploadDocument.mutateAsync(formData);
     },
     [uploadDocument]

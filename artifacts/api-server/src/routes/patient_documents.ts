@@ -140,8 +140,17 @@ router.post("/patients/:patientId/documents", (req, res, next) => {
     const files = req.files as Express.Multer.File[] || [];
     if (!files.length) return res.status(400).json({ error: "No files provided" });
 
-    const { category, description, tags, department, module } = req.body;
+    let { category, description, tags, department, module } = req.body;
     if (!category) return res.status(400).json({ error: "Category is required" });
+
+    // Parse tags if it's a JSON string
+    if (typeof tags === "string") {
+      try {
+        tags = JSON.parse(tags);
+      } catch {
+        tags = tags ? [tags] : [];
+      }
+    }
 
     const uploadedDocuments = [];
 
@@ -173,7 +182,7 @@ router.post("/patients/:patientId/documents", (req, res, next) => {
         fileData: file.buffer,
         fileHash,
         category: category || null,
-        tags: tags ? (Array.isArray(tags) ? tags : [tags]) : [],
+        tags: Array.isArray(tags) ? tags : (tags ? [tags] : []),
         description: description || null,
         department: department || null,
         module: module || null,
