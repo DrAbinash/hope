@@ -147,6 +147,36 @@ const checkVitalStatus = (vital: string, value: string): "normal" | "warning" | 
   return "unknown";
 };
 
+const DEFAULT_SYMPTOMS = [
+  "Fever",
+  "Cough",
+  "Shortness of breath",
+  "Chest pain",
+  "Abdominal pain",
+  "Nausea",
+  "Vomiting",
+  "Headache",
+  "Dizziness",
+  "Weakness",
+  "Joint pain",
+  "Back pain",
+];
+
+const DEFAULT_QUICK_FINDINGS = [
+  "Alert & conscious",
+  "Fever present",
+  "Tachycardia",
+  "Tachypnea",
+  "Hypoxia",
+  "Dehydration",
+  "Pallor",
+  "Jaundice",
+  "Cyanosis",
+  "Edema",
+  "Lymphadenopathy",
+  "Hepatomegaly",
+];
+
 const DEFAULT_FOLLOWUP_TEMPLATES = [
   "Review vitals 4-hourly",
   "Monitor I/O chart",
@@ -319,6 +349,25 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
     return DEFAULT_FOLLOWUP_TEMPLATES;
   });
 
+  const [symptomTemplates, setSymptomTemplates] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("symptomTemplates");
+      return stored ? JSON.parse(stored) : DEFAULT_SYMPTOMS;
+    }
+    return DEFAULT_SYMPTOMS;
+  });
+
+  const [findingTemplates, setFindingTemplates] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("findingTemplates");
+      return stored ? JSON.parse(stored) : DEFAULT_QUICK_FINDINGS;
+    }
+    return DEFAULT_QUICK_FINDINGS;
+  });
+
+  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
+  const [selectedFindings, setSelectedFindings] = useState<string[]>([]);
+
   const [newInvestigation, setNewInvestigation] = useState("");
   const [newFollowup, setNewFollowup] = useState("");
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
@@ -443,6 +492,8 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
     setSelectedFollowup([]);
     setSelectedMedicationTemplates([]);
     setSelectedConditions([]);
+    setSelectedSymptoms([]);
+    setSelectedFindings([]);
     setAiGenerated(false);
     setAiDraftInfo(null);
     setAiDraftOriginalValues(null);
@@ -538,7 +589,61 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
     localStorage.setItem("investigationTemplates", JSON.stringify(DEFAULT_INVESTIGATION_TEMPLATES));
     setFollowupTemplates(DEFAULT_FOLLOWUP_TEMPLATES);
     localStorage.setItem("followupTemplates", JSON.stringify(DEFAULT_FOLLOWUP_TEMPLATES));
-    toast.success("Templates reset to default");
+    setSymptomTemplates(DEFAULT_SYMPTOMS);
+    localStorage.setItem("symptomTemplates", JSON.stringify(DEFAULT_SYMPTOMS));
+    setFindingTemplates(DEFAULT_QUICK_FINDINGS);
+    localStorage.setItem("findingTemplates", JSON.stringify(DEFAULT_QUICK_FINDINGS));
+    toast.success("All templates reset to default");
+  };
+
+  const toggleSymptom = (symptom: string) => {
+    const updated = selectedSymptoms.includes(symptom)
+      ? selectedSymptoms.filter(x => x !== symptom)
+      : [...selectedSymptoms, symptom];
+    setSelectedSymptoms(updated);
+    setForm(f => ({ ...f, subjectiveComplaints: updated.join("; ") }));
+  };
+
+  const toggleFinding = (finding: string) => {
+    const updated = selectedFindings.includes(finding)
+      ? selectedFindings.filter(x => x !== finding)
+      : [...selectedFindings, finding];
+    setSelectedFindings(updated);
+    setForm(f => ({ ...f, objectiveFindings: updated.join("; ") }));
+  };
+
+  const addSymptomTemplate = (newSymptom: string) => {
+    if (newSymptom.trim() && !symptomTemplates.includes(newSymptom.trim())) {
+      const updated = [...symptomTemplates, newSymptom.trim()];
+      setSymptomTemplates(updated);
+      localStorage.setItem("symptomTemplates", JSON.stringify(updated));
+      return true;
+    }
+    return false;
+  };
+
+  const removeSymptomTemplate = (symptom: string) => {
+    const updated = symptomTemplates.filter(x => x !== symptom);
+    setSymptomTemplates(updated);
+    localStorage.setItem("symptomTemplates", JSON.stringify(updated));
+    setSelectedSymptoms(selectedSymptoms.filter(x => x !== symptom));
+  };
+
+  const addFindingTemplate = (newFinding: string) => {
+    if (newFinding.trim() && !findingTemplates.includes(newFinding.trim())) {
+      const updated = [...findingTemplates, newFinding.trim()];
+      setFindingTemplates(updated);
+      localStorage.setItem("findingTemplates", JSON.stringify(updated));
+      return true;
+    }
+    return false;
+  };
+
+  const removeFindingTemplate = (finding: string) => {
+    const updated = findingTemplates.filter(x => x !== finding);
+    setFindingTemplates(updated);
+    localStorage.setItem("findingTemplates", JSON.stringify(updated));
+    setSelectedFindings(selectedFindings.filter(x => x !== finding));
   };
 
   const toggleMedicationTemplate = (templateKey: string) => {
@@ -964,13 +1069,107 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
 
       {/* Template Editor Dialog */}
       <Dialog open={showTemplateEditor} onOpenChange={setShowTemplateEditor}>
-        <DialogContent className="max-w-2xl rounded-2xl">
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Customize Templates</DialogTitle>
+            <DialogTitle>Customize Templates & Quick Selections</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 text-xs">
+            {/* Symptoms Editor */}
+            <div className="space-y-2 border rounded-lg p-3 bg-amber-50/50 dark:bg-amber-950/20">
+              <Label className="font-semibold">Symptoms (Subjective Complaints)</Label>
+              <div className="flex gap-2 mb-2">
+                <Input
+                  placeholder="Add new symptom (e.g., Joint pain)"
+                  onKeyPress={e => {
+                    if (e.key === "Enter") {
+                      const inp = e.currentTarget;
+                      if (addSymptomTemplate(inp.value)) {
+                        inp.value = "";
+                        toast.success("Symptom added");
+                      }
+                    }
+                  }}
+                  className="h-8 text-xs flex-1"
+                />
+                <Button
+                  type="button"
+                  onClick={(e) => {
+                    const inp = (e.currentTarget.parentElement?.querySelector('input') as HTMLInputElement);
+                    if (inp && addSymptomTemplate(inp.value)) {
+                      inp.value = "";
+                      toast.success("Symptom added");
+                    }
+                  }}
+                  className="h-8 bg-amber-700 text-white text-xs rounded-lg"
+                >
+                  Add
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {symptomTemplates.map(symptom => (
+                  <Badge key={symptom} variant="secondary" className="flex items-center gap-1 text-[10px] bg-amber-100">
+                    {symptom}
+                    <button
+                      type="button"
+                      onClick={() => { removeSymptomTemplate(symptom); toast.success("Symptom removed"); }}
+                      className="text-red-600 font-bold ml-1 hover:text-red-800"
+                    >
+                      ×
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            {/* Findings Editor */}
+            <div className="space-y-2 border rounded-lg p-3 bg-blue-50/50 dark:bg-blue-950/20">
+              <Label className="font-semibold">Physical Findings (Objective)</Label>
+              <div className="flex gap-2 mb-2">
+                <Input
+                  placeholder="Add new finding (e.g., Splenomegaly)"
+                  onKeyPress={e => {
+                    if (e.key === "Enter") {
+                      const inp = e.currentTarget;
+                      if (addFindingTemplate(inp.value)) {
+                        inp.value = "";
+                        toast.success("Finding added");
+                      }
+                    }
+                  }}
+                  className="h-8 text-xs flex-1"
+                />
+                <Button
+                  type="button"
+                  onClick={(e) => {
+                    const inp = (e.currentTarget.parentElement?.querySelector('input') as HTMLInputElement);
+                    if (inp && addFindingTemplate(inp.value)) {
+                      inp.value = "";
+                      toast.success("Finding added");
+                    }
+                  }}
+                  className="h-8 bg-blue-700 text-white text-xs rounded-lg"
+                >
+                  Add
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {findingTemplates.map(finding => (
+                  <Badge key={finding} variant="secondary" className="flex items-center gap-1 text-[10px] bg-blue-100">
+                    {finding}
+                    <button
+                      type="button"
+                      onClick={() => { removeFindingTemplate(finding); toast.success("Finding removed"); }}
+                      className="text-red-600 font-bold ml-1 hover:text-red-800"
+                    >
+                      ×
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
             {/* Investigations Editor */}
-            <div className="space-y-2 border rounded-lg p-3">
+            <div className="space-y-2 border rounded-lg p-3 bg-purple-50/50 dark:bg-purple-950/20">
               <Label className="font-semibold">Investigation Templates</Label>
               <div className="flex gap-2 mb-2">
                 <Input
@@ -978,24 +1177,24 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
                   value={newInvestigation}
                   onChange={e => setNewInvestigation(e.target.value)}
                   onKeyPress={e => e.key === "Enter" && addInvestigationTemplate()}
-                  className="h-8 text-xs"
+                  className="h-8 text-xs flex-1"
                 />
                 <Button
                   type="button"
                   onClick={addInvestigationTemplate}
-                  className="h-8 bg-slate-800 text-white text-xs rounded-lg"
+                  className="h-8 bg-purple-700 text-white text-xs rounded-lg"
                 >
                   Add
                 </Button>
               </div>
               <div className="flex flex-wrap gap-1">
                 {investigationTemplates.map(inv => (
-                  <Badge key={inv} variant="secondary" className="flex items-center gap-1 text-[10px]">
+                  <Badge key={inv} variant="secondary" className="flex items-center gap-1 text-[10px] bg-purple-100">
                     {inv}
                     <button
                       type="button"
                       onClick={() => removeInvestigationTemplate(inv)}
-                      className="text-red-500 font-bold ml-1 hover:text-red-700"
+                      className="text-red-600 font-bold ml-1 hover:text-red-800"
                     >
                       ×
                     </button>
@@ -1005,7 +1204,7 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
             </div>
 
             {/* Follow-up Editor */}
-            <div className="space-y-2 border rounded-lg p-3">
+            <div className="space-y-2 border rounded-lg p-3 bg-cyan-50/50 dark:bg-cyan-950/20">
               <Label className="font-semibold">Follow-up Templates</Label>
               <div className="flex gap-2 mb-2">
                 <Input
@@ -1013,24 +1212,24 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
                   value={newFollowup}
                   onChange={e => setNewFollowup(e.target.value)}
                   onKeyPress={e => e.key === "Enter" && addFollowupTemplate()}
-                  className="h-8 text-xs"
+                  className="h-8 text-xs flex-1"
                 />
                 <Button
                   type="button"
                   onClick={addFollowupTemplate}
-                  className="h-8 bg-slate-800 text-white text-xs rounded-lg"
+                  className="h-8 bg-cyan-700 text-white text-xs rounded-lg"
                 >
                   Add
                 </Button>
               </div>
               <div className="flex flex-wrap gap-1">
                 {followupTemplates.map(followup => (
-                  <Badge key={followup} variant="secondary" className="flex items-center gap-1 text-[10px]">
+                  <Badge key={followup} variant="secondary" className="flex items-center gap-1 text-[10px] bg-cyan-100">
                     {followup}
                     <button
                       type="button"
                       onClick={() => removeFollowupTemplate(followup)}
-                      className="text-red-500 font-bold ml-1 hover:text-red-700"
+                      className="text-red-600 font-bold ml-1 hover:text-red-800"
                     >
                       ×
                     </button>
@@ -1046,7 +1245,7 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
               onClick={resetTemplatesToDefault}
               className="w-full text-xs"
             >
-              Reset to Default Templates
+              Reset All Templates to Defaults
             </Button>
           </div>
           <DialogFooter>
@@ -1163,30 +1362,70 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
               </div>
             )}
 
-            {/* Subjective Complaints with Quick Templates */}
+            {/* Subjective Complaints - Chocolate Box Selector */}
             <div className="border p-3 rounded-xl space-y-2">
-              <Label className="font-semibold flex items-center gap-1"><Zap className="w-3.5 h-3.5 text-amber-500" /> Subjective Complaints (Quick Select)</Label>
-              <div className="flex flex-wrap gap-1.5">
-                {COMPLAINT_TEMPLATES.map(complaint => (
-                  <Button
-                    key={complaint}
+              <div className="flex items-center justify-between">
+                <Label className="font-semibold flex items-center gap-1"><Zap className="w-3.5 h-3.5 text-amber-500" /> Symptoms (Click to Select)</Label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowTemplateEditor(true)}
+                  className="h-6 text-xs text-slate-500 hover:text-slate-700"
+                >
+                  ⚙ Customize
+                </Button>
+              </div>
+              <div className="grid grid-cols-3 gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg max-h-40 overflow-y-auto">
+                {symptomTemplates.map(symptom => (
+                  <button
+                    key={symptom}
                     type="button"
-                    size="sm"
-                    variant={form.subjectiveComplaints === complaint ? "default" : "outline"}
-                    onClick={() => setForm(f => ({ ...f, subjectiveComplaints: complaint }))}
-                    className="h-7 text-xs rounded-lg"
+                    onClick={() => toggleSymptom(symptom)}
+                    className={`px-3 py-2 text-xs rounded-lg border-2 font-semibold transition ${
+                      selectedSymptoms.includes(symptom)
+                        ? "bg-amber-400 text-amber-900 border-amber-600 shadow-md scale-105"
+                        : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-amber-200 dark:border-amber-800 hover:shadow-sm hover:border-amber-400"
+                    }`}
                   >
-                    {complaint}
-                  </Button>
+                    {symptom}
+                  </button>
                 ))}
               </div>
               <Textarea value={form.subjectiveComplaints} onChange={e => setForm(f => ({ ...f, subjectiveComplaints: e.target.value }))} className="mt-2 h-14 rounded-lg text-xs" placeholder="Or type custom complaints..." />
             </div>
 
-            {/* Objective Findings */}
-            <div>
-              <Label className="font-semibold">Objective Findings</Label>
-              <Textarea value={form.objectiveFindings} onChange={e => setForm(f => ({ ...f, objectiveFindings: e.target.value }))} className="mt-1 h-16 rounded-xl text-xs" placeholder="Clinical findings..." />
+            {/* Objective Findings - Chocolate Box Selector */}
+            <div className="border p-3 rounded-xl space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="font-semibold flex items-center gap-1"><Zap className="w-3.5 h-3.5 text-blue-500" /> Physical Findings (Click to Select)</Label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowTemplateEditor(true)}
+                  className="h-6 text-xs text-slate-500 hover:text-slate-700"
+                >
+                  ⚙ Customize
+                </Button>
+              </div>
+              <div className="grid grid-cols-3 gap-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg max-h-40 overflow-y-auto">
+                {findingTemplates.map(finding => (
+                  <button
+                    key={finding}
+                    type="button"
+                    onClick={() => toggleFinding(finding)}
+                    className={`px-3 py-2 text-xs rounded-lg border-2 font-semibold transition ${
+                      selectedFindings.includes(finding)
+                        ? "bg-blue-400 text-blue-900 border-blue-600 shadow-md scale-105"
+                        : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-blue-200 dark:border-blue-800 hover:shadow-sm hover:border-blue-400"
+                    }`}
+                  >
+                    {finding}
+                  </button>
+                ))}
+              </div>
+              <Textarea value={form.objectiveFindings} onChange={e => setForm(f => ({ ...f, objectiveFindings: e.target.value }))} className="mt-2 h-14 rounded-lg text-xs" placeholder="Or type custom findings..." />
             </div>
 
             {/* Vitals Summary with Quick Templates */}
