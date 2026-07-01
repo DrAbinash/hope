@@ -1,4 +1,5 @@
 export interface DocumentMetadata {
+  id: string;
   fileName: string;
   fileSize: number;
   fileType: string;
@@ -7,6 +8,21 @@ export interface DocumentMetadata {
   category: string;
   tags?: string[];
   description?: string;
+  department?: string;
+  module?: string;
+  patientId?: number | string;
+  url?: string;
+}
+
+export interface DocumentSearchFilter {
+  category?: string;
+  uploadedBy?: string;
+  startDate?: Date;
+  endDate?: Date;
+  tags?: string[];
+  department?: string;
+  module?: string;
+  searchText?: string;
 }
 
 export function formatFileSize(bytes: number): string {
@@ -237,3 +253,99 @@ export const DOCUMENT_CATEGORIES = [
   "Discharge Summary",
   "Other",
 ];
+
+export const DOCUMENT_DEPARTMENTS = [
+  "Registration",
+  "Billing",
+  "OPD",
+  "IPD",
+  "ICU",
+  "Radiology",
+  "Laboratory",
+  "Pharmacy",
+  "Surgery",
+  "Discharge",
+];
+
+export const DOCUMENT_MODULES = [
+  "Admission",
+  "Consultation",
+  "Investigation",
+  "Treatment",
+  "Discharge",
+  "Follow-up",
+  "Insurance",
+  "Legal",
+];
+
+export function searchDocuments(documents: DocumentMetadata[], filter: DocumentSearchFilter): DocumentMetadata[] {
+  return documents.filter((doc) => {
+    if (filter.category && doc.category !== filter.category) return false;
+    if (filter.uploadedBy && doc.uploadedBy !== filter.uploadedBy) return false;
+    if (filter.department && doc.department !== filter.department) return false;
+    if (filter.module && doc.module !== filter.module) return false;
+
+    if (filter.startDate) {
+      const docDate = new Date(doc.uploadedAt);
+      if (docDate < filter.startDate) return false;
+    }
+
+    if (filter.endDate) {
+      const docDate = new Date(doc.uploadedAt);
+      if (docDate > filter.endDate) return false;
+    }
+
+    if (filter.tags && filter.tags.length > 0) {
+      const docTags = doc.tags || [];
+      const hasAllTags = filter.tags.every((tag) => docTags.includes(tag));
+      if (!hasAllTags) return false;
+    }
+
+    if (filter.searchText) {
+      const searchLower = filter.searchText.toLowerCase();
+      const matches =
+        doc.fileName.toLowerCase().includes(searchLower) ||
+        doc.category.toLowerCase().includes(searchLower) ||
+        doc.description?.toLowerCase().includes(searchLower) ||
+        doc.tags?.some((tag) => tag.toLowerCase().includes(searchLower));
+      if (!matches) return false;
+    }
+
+    return true;
+  });
+}
+
+export function groupDocumentsByCategory(documents: DocumentMetadata[]): Record<string, DocumentMetadata[]> {
+  return documents.reduce(
+    (acc, doc) => {
+      if (!acc[doc.category]) acc[doc.category] = [];
+      acc[doc.category].push(doc);
+      return acc;
+    },
+    {} as Record<string, DocumentMetadata[]>
+  );
+}
+
+export function groupDocumentsByDate(documents: DocumentMetadata[]): Record<string, DocumentMetadata[]> {
+  return documents.reduce(
+    (acc, doc) => {
+      const date = new Date(doc.uploadedAt).toLocaleDateString("en-IN");
+      if (!acc[date]) acc[date] = [];
+      acc[date].push(doc);
+      return acc;
+    },
+    {} as Record<string, DocumentMetadata[]>
+  );
+}
+
+export function getDocumentStats(documents: DocumentMetadata[]) {
+  return {
+    total: documents.length,
+    byCategory: Object.entries(groupDocumentsByCategory(documents)).map(([category, docs]) => ({
+      category,
+      count: docs.length,
+    })),
+    totalSize: documents.reduce((sum, doc) => sum + doc.fileSize, 0),
+    uploadedBy: [...new Set(documents.map((doc) => doc.uploadedBy).filter(Boolean))] as string[],
+  };
+}
