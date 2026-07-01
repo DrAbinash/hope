@@ -659,6 +659,48 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
     }
   };
 
+  const copyFromPreviousDay = () => {
+    if (!notes || notes.length === 0) {
+      toast.error("No previous notes to copy from");
+      return;
+    }
+    const prevNote = notes[0]; // Most recent is first
+    setForm({
+      subjectiveComplaints: prevNote.subjectiveComplaints ? `[From previous day] ${prevNote.subjectiveComplaints}` : "",
+      objectiveFindings: prevNote.objectiveFindings ? `[From previous day] ${prevNote.objectiveFindings}` : "",
+      vitals: prevNote.vitalsSummary ? { ...prevNote.vitalsSummary } : { temp: "", pulse: "", bp: "", rr: "", spo2: "" },
+      systemic: prevNote.examinationSystemic ? { ...prevNote.examinationSystemic } : { cns: "", cvs: "", rs: "", pa: "" },
+      diagnosisAssessment: prevNote.diagnosisAssessment || "",
+      plan: prevNote.plan || "",
+      investigations: Array.isArray(prevNote.investigationsAdvised) ? prevNote.investigationsAdvised.join(", ") : "",
+      medicines: [],
+      procedureNotes: "",
+      followUpInstructions: prevNote.followUpInstructions || "",
+    });
+
+    if (prevNote.examinationSystemic?.cns) {
+      setSelectedCNS(prevNote.examinationSystemic.cns.split("; ").filter(Boolean));
+    }
+    if (prevNote.examinationSystemic?.cvs) {
+      setSelectedCVS(prevNote.examinationSystemic.cvs.split("; ").filter(Boolean));
+    }
+    if (prevNote.examinationSystemic?.rs) {
+      setSelectedRS(prevNote.examinationSystemic.rs.split("; ").filter(Boolean));
+    }
+    if (prevNote.examinationSystemic?.pa) {
+      setSelectedPA(prevNote.examinationSystemic.pa.split("; ").filter(Boolean));
+    }
+    if (prevNote.investigationsAdvised) {
+      setSelectedInvestigations(prevNote.investigationsAdvised);
+    }
+    if (prevNote.followUpInstructions) {
+      setSelectedFollowup(prevNote.followUpInstructions.split("; ").filter(Boolean));
+    }
+
+    setShowAdd(true);
+    toast.success("Loaded findings from previous day - edit as needed");
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const docId = user?.id || (doctors && doctors[0]?.id) || 1;
@@ -810,9 +852,16 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
           <CardDescription>Clinical daily checkins and assessment notes</CardDescription>
         </div>
         {isDoctorOrAdmin && (
-          <Button size="sm" onClick={() => { resetForm(); setShowAdd(true); }} className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white">
-            <Plus className="w-4 h-4 mr-1" /> Add Daily Note
-          </Button>
+          <div className="flex gap-2">
+            {notes && notes.length > 0 && (
+              <Button size="sm" onClick={copyFromPreviousDay} variant="outline" className="rounded-xl">
+                ↻ Copy Previous Day
+              </Button>
+            )}
+            <Button size="sm" onClick={() => { resetForm(); setShowAdd(true); }} className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white">
+              <Plus className="w-4 h-4 mr-1" /> Add Daily Note
+            </Button>
+          </div>
         )}
       </CardHeader>
       <CardContent className="pt-4">
