@@ -16,6 +16,10 @@ import DrugInteractionChecker from "./DrugInteractionChecker";
 import SmartDiagnosisSuggestions from "./SmartDiagnosisSuggestions";
 import VitalTrendsDashboard from "./VitalTrendsDashboard";
 import PrescriptionValidator from "./PrescriptionValidator";
+import GlasgowComaScale from "./GlasgowComaScale";
+import PupilsExamination from "./PupilsExamination";
+import { GCSScore } from "@/lib/gcs-assessment";
+import { PupilsAssessment } from "@/lib/pupils-assessment";
 
 interface Vitals {
   temp?: string;
@@ -278,6 +282,8 @@ interface ProgressNote {
   medicinesChanged: { name: string; dose: string; action: "Added" | "Stopped" | "Modified" }[];
   procedureNotes: string;
   followUpInstructions: string;
+  glasgowComaScale?: GCSScore;
+  pupilsAssessment?: PupilsAssessment;
 }
 
 interface Props {
@@ -325,6 +331,14 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
     medicines: [] as { name: string; dose: string; action: "Added" | "Stopped" | "Modified" }[],
     procedureNotes: "",
     followUpInstructions: "",
+    glasgowComaScale: { eyeOpening: null, verbalResponse: null, motorResponse: null } as GCSScore,
+    pupilsAssessment: {
+      size: { left: null, right: null },
+      reactivity: { left: null, right: null },
+      shape: { left: null, right: null },
+      equality: null,
+      notes: "",
+    } as PupilsAssessment,
   });
 
   // Checkbox templates for systemic examination
@@ -413,6 +427,14 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
         medicines: data.draft.medicinesChanged || [],
         procedureNotes: data.draft.procedureNotes || "",
         followUpInstructions: data.draft.followUpInstructions || "",
+        glasgowComaScale: data.draft.glasgowComaScale || { eyeOpening: null, verbalResponse: null, motorResponse: null },
+        pupilsAssessment: data.draft.pupilsAssessment || {
+          size: { left: null, right: null },
+          reactivity: { left: null, right: null },
+          shape: { left: null, right: null },
+          equality: null,
+          notes: "",
+        },
       });
 
       setAiDraftOriginalValues({
@@ -488,6 +510,14 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
       medicines: [],
       procedureNotes: "",
       followUpInstructions: "",
+      glasgowComaScale: { eyeOpening: null, verbalResponse: null, motorResponse: null },
+      pupilsAssessment: {
+        size: { left: null, right: null },
+        reactivity: { left: null, right: null },
+        shape: { left: null, right: null },
+        equality: null,
+        notes: "",
+      },
     });
     setSelectedCNS([]);
     setSelectedCVS([]);
@@ -746,6 +776,14 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
       medicines: note.medicinesChanged || [],
       procedureNotes: note.procedureNotes || "",
       followUpInstructions: note.followUpInstructions || "",
+      glasgowComaScale: note.glasgowComaScale || { eyeOpening: null, verbalResponse: null, motorResponse: null },
+      pupilsAssessment: note.pupilsAssessment || {
+        size: { left: null, right: null },
+        reactivity: { left: null, right: null },
+        shape: { left: null, right: null },
+        equality: null,
+        notes: "",
+      },
     });
 
     // Restore checkbox states from existing data
@@ -797,6 +835,14 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
       medicines: [],
       procedureNotes: "",
       followUpInstructions: prevNote.followUpInstructions || "",
+      glasgowComaScale: prevNote.glasgowComaScale || { eyeOpening: null, verbalResponse: null, motorResponse: null },
+      pupilsAssessment: prevNote.pupilsAssessment || {
+        size: { left: null, right: null },
+        reactivity: { left: null, right: null },
+        shape: { left: null, right: null },
+        equality: null,
+        notes: "",
+      },
     });
 
     if (prevNote.examinationSystemic?.cns) {
@@ -847,6 +893,8 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
       medicinesChanged: form.medicines,
       procedureNotes: form.procedureNotes,
       followUpInstructions: form.followUpInstructions,
+      glasgowComaScale: form.glasgowComaScale,
+      pupilsAssessment: form.pupilsAssessment,
       aiGenerated,
       doctorEdited: isEdited,
       approvedBy: aiGenerated ? docId : null,
@@ -1643,6 +1691,22 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* Glasgow Coma Scale */}
+            <div className="border-t pt-4">
+              <GlasgowComaScale
+                value={form.glasgowComaScale}
+                onChange={(gcs) => setForm(f => ({ ...f, glasgowComaScale: gcs }))}
+              />
+            </div>
+
+            {/* Pupils Examination */}
+            <div>
+              <PupilsExamination
+                value={form.pupilsAssessment}
+                onChange={(pupils) => setForm(f => ({ ...f, pupilsAssessment: pupils }))}
+              />
             </div>
 
             {/* AI Diagnosis Suggestions */}

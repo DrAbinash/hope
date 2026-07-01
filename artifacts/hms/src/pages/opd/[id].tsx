@@ -23,6 +23,10 @@ import { useDebouncedAutosave } from "@/hooks/use-autosave";
 import { useAuth } from "@/lib/auth";
 import { DocumentIntegration } from "@/components/document-integration";
 import { DocumentUpload } from "@/components/document-upload";
+import GlasgowComaScale from "@/components/GlasgowComaScale";
+import PupilsExamination from "@/components/PupilsExamination";
+import { GCSScore } from "@/lib/gcs-assessment";
+import { PupilsAssessment } from "@/lib/pupils-assessment";
 
 interface RxItem {
   medicineId?: number;
@@ -50,6 +54,8 @@ interface ClinicalState {
   advise: string;
   specialAdvise: string;
   nextVisitDate: string;
+  glasgowComaScale?: GCSScore;
+  pupilsAssessment?: PupilsAssessment;
 }
 
 function SaveBadge({ state }: { state: "idle" | "saving" | "saved" | "error" }) {
@@ -69,6 +75,14 @@ export default function OPDDetail() {
   const [rx, setRx] = useState<RxItem[]>([]);
   const [clinical, setClinical] = useState<ClinicalState>({
     chiefComplaints: "", diagnosis: "", labTests: "", radiologyTests: "", advise: "", specialAdvise: "", nextVisitDate: "",
+    glasgowComaScale: { eyeOpening: null, verbalResponse: null, motorResponse: null },
+    pupilsAssessment: {
+      size: { left: null, right: null },
+      reactivity: { left: null, right: null },
+      shape: { left: null, right: null },
+      equality: null,
+      notes: "",
+    },
   });
   const [loadedFor, setLoadedFor] = useState<number | null>(null);
   const [savingRx, setSavingRx] = useState(false);
@@ -124,6 +138,14 @@ export default function OPDDetail() {
       advise: (visit as any).advise || "",
       specialAdvise: (visit as any).specialAdvise || "",
       nextVisitDate: (visit as any).nextVisitDate || "",
+      glasgowComaScale: (visit as any).glasgowComaScale || { eyeOpening: null, verbalResponse: null, motorResponse: null },
+      pupilsAssessment: (visit as any).pupilsAssessment || {
+        size: { left: null, right: null },
+        reactivity: { left: null, right: null },
+        shape: { left: null, right: null },
+        equality: null,
+        notes: "",
+      },
     });
     setLoadedFor(id);
     if ((visit as any).aiGenerated) {
@@ -913,6 +935,28 @@ export default function OPDDetail() {
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* Glasgow Coma Scale */}
+            <div className="md:col-span-2 border-t pt-4">
+              <GlasgowComaScale
+                value={clinical.glasgowComaScale || { eyeOpening: null, verbalResponse: null, motorResponse: null }}
+                onChange={(gcs) => patchClinical({ glasgowComaScale: gcs })}
+              />
+            </div>
+
+            {/* Pupils Examination */}
+            <div className="md:col-span-2">
+              <PupilsExamination
+                value={clinical.pupilsAssessment || {
+                  size: { left: null, right: null },
+                  reactivity: { left: null, right: null },
+                  shape: { left: null, right: null },
+                  equality: null,
+                  notes: "",
+                }}
+                onChange={(pupils) => patchClinical({ pupilsAssessment: pupils })}
+              />
             </div>
           </div>
         </CardContent>
