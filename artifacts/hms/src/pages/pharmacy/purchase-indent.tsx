@@ -51,7 +51,7 @@ export default function PurchaseIndentPage() {
   const [form, setForm] = useState({ requestedByName: "", department: "", urgency: "routine", notes: "", items: [{ medicineId: "", medicineName: "", requiredQty: 1, unit: "strip", reason: "" }] });
   const [approvedQtys, setApprovedQtys] = useState<Record<number, number>>({});
 
-  const { data: indents = [], isLoading } = useQuery({ queryKey: ["purchase-indents", filterStatus], queryFn: () => fetchIndents(filterStatus || undefined) });
+  const { data: indents = [], isLoading } = useQuery({ queryKey: ["purchase-indents", filterStatus], queryFn: () => fetchIndents(filterStatus !== "all" ? filterStatus : undefined) });
   const { data: medicines = [] } = useQuery({ queryKey: ["medicines-list"], queryFn: fetchMedicines });
   const safeIndents = Array.isArray(indents) ? indents : [];
   const safeMedicines = Array.isArray(medicines) ? medicines : [];
@@ -110,7 +110,7 @@ export default function PurchaseIndentPage() {
           <TabsTrigger value="pending">Pending</TabsTrigger>
           <TabsTrigger value="approved">Approved</TabsTrigger>
           <TabsTrigger value="rejected">Rejected</TabsTrigger>
-          <TabsTrigger value="">All</TabsTrigger>
+          <TabsTrigger value="all">All</TabsTrigger>
         </TabsList>
         <TabsContent value={filterStatus} className="mt-4">
           <Card>
