@@ -56,7 +56,6 @@ export default function BillingDeskPage() {
   // --- Patient state ---
   const [patient, setPatient] = useState<Patient | null>(null);
   const [search, setSearch] = useState("");
-  const [expandRegister, setExpandRegister] = useState(false);
   const [newPatient, setNewPatient] = useState({
     name: "", age: "", gender: "Male", phone: "", address: "",
     guardianName: "", guardianPhone: "", idCardUrl: "", photoUrl: "", reportsUrl: "",
@@ -157,7 +156,6 @@ export default function BillingDeskPage() {
     onSuccess: (p) => {
       toast.success(`Registered ${p.name} (${p.uhid})`);
       setPatient(p);
-      setExpandRegister(false);
       setNewPatient({ name: "", age: "", gender: "Male", phone: "", address: "", guardianName: "", guardianPhone: "", idCardUrl: "", photoUrl: "", reportsUrl: "" });
       qc.invalidateQueries({ queryKey: ["/api/patients"] });
     },
