@@ -101,6 +101,52 @@ const DEFAULT_INVESTIGATION_TEMPLATES = [
   "Blood cultures",
 ];
 
+const VITAL_RANGES = {
+  temp: { min: 98.0, max: 100.4, unit: "°F" },
+  pulse: { min: 60, max: 100, unit: "bpm" },
+  bp_systolic: { min: 90, max: 140, unit: "mmHg" },
+  bp_diastolic: { min: 60, max: 90, unit: "mmHg" },
+  rr: { min: 12, max: 20, unit: "/min" },
+  spo2: { min: 95, max: 100, unit: "%" },
+};
+
+const checkVitalStatus = (vital: string, value: string): "normal" | "warning" | "critical" | "unknown" => {
+  if (!value) return "unknown";
+  const num = parseFloat(value);
+  if (isNaN(num)) return "unknown";
+
+  if (vital === "temp") {
+    if (num < 95 || num > 103) return "critical";
+    if (num < 98 || num > 100.4) return "warning";
+    return "normal";
+  }
+  if (vital === "pulse") {
+    if (num < 40 || num > 140) return "critical";
+    if (num < 60 || num > 100) return "warning";
+    return "normal";
+  }
+  if (vital === "bp") {
+    const parts = value.split("/");
+    const systolic = parseFloat(parts[0]);
+    const diastolic = parseFloat(parts[1]);
+    if (isNaN(systolic) || isNaN(diastolic)) return "unknown";
+    if (systolic < 80 || systolic > 180 || diastolic < 50 || diastolic > 120) return "critical";
+    if (systolic < 90 || systolic > 140 || diastolic < 60 || diastolic > 90) return "warning";
+    return "normal";
+  }
+  if (vital === "rr") {
+    if (num < 8 || num > 30) return "critical";
+    if (num < 12 || num > 20) return "warning";
+    return "normal";
+  }
+  if (vital === "spo2") {
+    if (num < 85) return "critical";
+    if (num < 95) return "warning";
+    return "normal";
+  }
+  return "unknown";
+};
+
 const DEFAULT_FOLLOWUP_TEMPLATES = [
   "Review vitals 4-hourly",
   "Monitor I/O chart",
@@ -1113,24 +1159,85 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
               </div>
               <div className="grid grid-cols-5 gap-2">
                 <div>
-                  <Label className="text-[10px]">Temp (°F)</Label>
-                  <Input size={5} value={form.vitals.temp} onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, temp: e.target.value } }))} className="mt-1 h-8 rounded-lg text-xs" placeholder="98.6" />
+                  <Label className="text-[10px] flex items-center gap-1">
+                    Temp (°F)
+                    {checkVitalStatus("temp", form.vitals.temp) === "critical" && <ShieldAlert className="w-3 h-3 text-red-600" />}
+                    {checkVitalStatus("temp", form.vitals.temp) === "warning" && <ShieldAlert className="w-3 h-3 text-orange-500" />}
+                  </Label>
+                  <Input
+                    size={5}
+                    value={form.vitals.temp}
+                    onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, temp: e.target.value } }))}
+                    className={`mt-1 h-8 rounded-lg text-xs border ${
+                      checkVitalStatus("temp", form.vitals.temp) === "critical" ? "border-red-500 bg-red-50" :
+                      checkVitalStatus("temp", form.vitals.temp) === "warning" ? "border-orange-500 bg-orange-50" : ""
+                    }`}
+                    placeholder="98.6"
+                  />
                 </div>
                 <div>
-                  <Label className="text-[10px]">Pulse (bpm)</Label>
-                  <Input value={form.vitals.pulse} onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, pulse: e.target.value } }))} className="mt-1 h-8 rounded-lg text-xs" placeholder="72" />
+                  <Label className="text-[10px] flex items-center gap-1">
+                    Pulse (bpm)
+                    {checkVitalStatus("pulse", form.vitals.pulse) === "critical" && <ShieldAlert className="w-3 h-3 text-red-600" />}
+                    {checkVitalStatus("pulse", form.vitals.pulse) === "warning" && <ShieldAlert className="w-3 h-3 text-orange-500" />}
+                  </Label>
+                  <Input
+                    value={form.vitals.pulse}
+                    onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, pulse: e.target.value } }))}
+                    className={`mt-1 h-8 rounded-lg text-xs border ${
+                      checkVitalStatus("pulse", form.vitals.pulse) === "critical" ? "border-red-500 bg-red-50" :
+                      checkVitalStatus("pulse", form.vitals.pulse) === "warning" ? "border-orange-500 bg-orange-50" : ""
+                    }`}
+                    placeholder="72"
+                  />
                 </div>
                 <div>
-                  <Label className="text-[10px]">BP (mmHg)</Label>
-                  <Input value={form.vitals.bp} onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, bp: e.target.value } }))} className="mt-1 h-8 rounded-lg text-xs" placeholder="120/80" />
+                  <Label className="text-[10px] flex items-center gap-1">
+                    BP (mmHg)
+                    {checkVitalStatus("bp", form.vitals.bp) === "critical" && <ShieldAlert className="w-3 h-3 text-red-600" />}
+                    {checkVitalStatus("bp", form.vitals.bp) === "warning" && <ShieldAlert className="w-3 h-3 text-orange-500" />}
+                  </Label>
+                  <Input
+                    value={form.vitals.bp}
+                    onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, bp: e.target.value } }))}
+                    className={`mt-1 h-8 rounded-lg text-xs border ${
+                      checkVitalStatus("bp", form.vitals.bp) === "critical" ? "border-red-500 bg-red-50" :
+                      checkVitalStatus("bp", form.vitals.bp) === "warning" ? "border-orange-500 bg-orange-50" : ""
+                    }`}
+                    placeholder="120/80"
+                  />
                 </div>
                 <div>
-                  <Label className="text-[10px]">Resp Rate (/min)</Label>
-                  <Input value={form.vitals.rr} onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, rr: e.target.value } }))} className="mt-1 h-8 rounded-lg text-xs" placeholder="18" />
+                  <Label className="text-[10px] flex items-center gap-1">
+                    Resp Rate (/min)
+                    {checkVitalStatus("rr", form.vitals.rr) === "critical" && <ShieldAlert className="w-3 h-3 text-red-600" />}
+                    {checkVitalStatus("rr", form.vitals.rr) === "warning" && <ShieldAlert className="w-3 h-3 text-orange-500" />}
+                  </Label>
+                  <Input
+                    value={form.vitals.rr}
+                    onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, rr: e.target.value } }))}
+                    className={`mt-1 h-8 rounded-lg text-xs border ${
+                      checkVitalStatus("rr", form.vitals.rr) === "critical" ? "border-red-500 bg-red-50" :
+                      checkVitalStatus("rr", form.vitals.rr) === "warning" ? "border-orange-500 bg-orange-50" : ""
+                    }`}
+                    placeholder="18"
+                  />
                 </div>
                 <div>
-                  <Label className="text-[10px]">SpO2 (%)</Label>
-                  <Input value={form.vitals.spo2} onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, spo2: e.target.value } }))} className="mt-1 h-8 rounded-lg text-xs" placeholder="98" />
+                  <Label className="text-[10px] flex items-center gap-1">
+                    SpO2 (%)
+                    {checkVitalStatus("spo2", form.vitals.spo2) === "critical" && <ShieldAlert className="w-3 h-3 text-red-600" />}
+                    {checkVitalStatus("spo2", form.vitals.spo2) === "warning" && <ShieldAlert className="w-3 h-3 text-orange-500" />}
+                  </Label>
+                  <Input
+                    value={form.vitals.spo2}
+                    onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, spo2: e.target.value } }))}
+                    className={`mt-1 h-8 rounded-lg text-xs border ${
+                      checkVitalStatus("spo2", form.vitals.spo2) === "critical" ? "border-red-500 bg-red-50" :
+                      checkVitalStatus("spo2", form.vitals.spo2) === "warning" ? "border-orange-500 bg-orange-50" : ""
+                    }`}
+                    placeholder="98"
+                  />
                 </div>
               </div>
             </div>
