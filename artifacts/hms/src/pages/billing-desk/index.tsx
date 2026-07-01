@@ -20,6 +20,7 @@ import {
   UserPlus, UserCheck, Search, Plus, Trash2, Receipt, CheckCircle2, Tag, Stethoscope,
 } from "lucide-react";
 import { BillingQuickServices } from "@/components/billing-quick-services";
+import { DocumentUpload } from "@/components/document-upload";
 
 interface Patient {
   id: number; uhid: string; name: string; age: number; gender: string;
@@ -258,37 +259,37 @@ export default function BillingDeskPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Registration & Billing Desk</h2>
-        <p className="text-muted-foreground text-sm">Register patient, add services, collect payment — all in one screen.</p>
+    <div className="space-y-3">
+      <div className="pb-2">
+        <h2 className="text-xl font-bold tracking-tight">Registration & Billing Desk</h2>
+        <p className="text-muted-foreground text-xs">Register patient, add services, collect payment — all in one screen.</p>
       </div>
 
       {/* Registration Form — Always Expanded */}
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center justify-between">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center justify-between">
             <span className="flex items-center gap-2">
               <UserPlus className="w-4 h-4" />Patient Registration / Search
             </span>
             {patient && <Button variant="ghost" size="sm" onClick={() => setPatient(null)}>Change Patient</Button>}
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-2 pt-2">
           {patient ? (
-            <div className="flex items-center gap-4 border rounded-lg p-4 bg-emerald-50/50 dark:bg-emerald-950/20">
+            <div className="flex items-center gap-3 border rounded-lg p-2 bg-emerald-50/50 dark:bg-emerald-950/20">
               <div className="flex-1">
-                <p className="font-semibold text-lg flex items-center gap-2">
+                <p className="font-semibold text-base flex items-center gap-2">
                   {patient.name}
                   <Badge variant="secondary" className="font-mono text-xs">{patient.uhid}</Badge>
                 </p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   {patient.age} yr • {patient.gender} {patient.phone ? `• ${patient.phone}` : ""} {patient.address ? `• ${patient.address}` : ""}
                 </p>
               </div>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-2">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input placeholder="Search by name, UHID, or phone..." value={search}
@@ -313,21 +314,21 @@ export default function BillingDeskPage() {
               )}
 
               {/* Registration Form — Always Visible */}
-              <div className="border-t pt-4 space-y-4">
-                <h3 className="font-semibold text-sm">Register New Patient</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="border-t pt-2 space-y-2">
+                <h3 className="font-semibold text-xs">Register New Patient</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                   <div className="col-span-1 md:col-span-2 lg:col-span-3">
-                    <Label className="text-xs font-medium">Full Name *</Label>
-                    <Input placeholder="Patient name" value={newPatient.name} onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })} />
+                    <Label className="text-xs">Full Name *</Label>
+                    <Input placeholder="Patient name" value={newPatient.name} onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })} className="h-8" />
                   </div>
                   <div>
-                    <Label className="text-xs font-medium">Age *</Label>
-                    <Input type="number" placeholder="Age" min={0} max={150} value={newPatient.age} onChange={(e) => setNewPatient({ ...newPatient, age: e.target.value })} />
+                    <Label className="text-xs">Age *</Label>
+                    <Input type="number" placeholder="Age" min={0} max={150} value={newPatient.age} onChange={(e) => setNewPatient({ ...newPatient, age: e.target.value })} className="h-8" />
                   </div>
                   <div>
-                    <Label className="text-xs font-medium">Gender *</Label>
+                    <Label className="text-xs">Gender *</Label>
                     <Select value={newPatient.gender} onValueChange={(v) => setNewPatient({ ...newPatient, gender: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Male">Male</SelectItem>
                         <SelectItem value="Female">Female</SelectItem>
@@ -336,56 +337,44 @@ export default function BillingDeskPage() {
                     </Select>
                   </div>
                   <div>
-                    <Label className="text-xs font-medium">Phone</Label>
-                    <Input placeholder="Phone number" value={newPatient.phone} onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })} />
+                    <Label className="text-xs">Phone</Label>
+                    <Input placeholder="Phone" value={newPatient.phone} onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })} className="h-8" />
                   </div>
                   <div className="col-span-1 md:col-span-2 lg:col-span-3">
-                    <Label className="text-xs font-medium">Address</Label>
-                    <Input placeholder="Full address" value={newPatient.address} onChange={(e) => setNewPatient({ ...newPatient, address: e.target.value })} />
+                    <Label className="text-xs">Address</Label>
+                    <Input placeholder="Address" value={newPatient.address} onChange={(e) => setNewPatient({ ...newPatient, address: e.target.value })} className="h-8" />
                   </div>
                 </div>
 
                 {/* IPD-specific demographics */}
-                <div className="border-t pt-3 space-y-3">
-                  <h4 className="text-xs font-semibold text-muted-foreground">Additional Demographics (for IPD conversion)</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="border-t pt-2 space-y-2">
+                  <h4 className="text-xs font-semibold text-muted-foreground">IPD Demographics</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     <div>
-                      <Label className="text-xs font-medium">Guardian Name</Label>
-                      <Input placeholder="Guardian/Next of kin name" value={newPatient.guardianName} onChange={(e) => setNewPatient({ ...newPatient, guardianName: e.target.value })} />
+                      <Label className="text-xs">Guardian Name</Label>
+                      <Input placeholder="Guardian name" value={newPatient.guardianName} onChange={(e) => setNewPatient({ ...newPatient, guardianName: e.target.value })} className="h-8" />
                     </div>
                     <div>
-                      <Label className="text-xs font-medium">Guardian Phone</Label>
-                      <Input placeholder="Guardian contact" value={newPatient.guardianPhone} onChange={(e) => setNewPatient({ ...newPatient, guardianPhone: e.target.value })} />
+                      <Label className="text-xs">Guardian Phone</Label>
+                      <Input placeholder="Contact" value={newPatient.guardianPhone} onChange={(e) => setNewPatient({ ...newPatient, guardianPhone: e.target.value })} className="h-8" />
                     </div>
                   </div>
 
                   {/* Document uploads */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div>
-                      <Label className="text-xs font-medium">ID Card / Aadhar</Label>
-                      <Input type="file" accept="image/*,.pdf" className="text-xs h-9" onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) setNewPatient({ ...newPatient, idCardUrl: file.name });
-                      }} />
-                    </div>
-                    <div>
-                      <Label className="text-xs font-medium">Photo</Label>
-                      <Input type="file" accept="image/*" className="text-xs h-9" onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) setNewPatient({ ...newPatient, photoUrl: file.name });
-                      }} />
-                    </div>
-                    <div>
-                      <Label className="text-xs font-medium">Reports / Documents</Label>
-                      <Input type="file" accept="image/*,.pdf" className="text-xs h-9" onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) setNewPatient({ ...newPatient, reportsUrl: file.name });
-                      }} />
-                    </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <DocumentUpload category="ID Card / Aadhar" onDocumentsChange={(docs) => {
+                      setNewPatient({ ...newPatient, idCardUrl: docs.map((d) => d.url).join(",") });
+                    }} />
+                    <DocumentUpload category="Photo" onDocumentsChange={(docs) => {
+                      setNewPatient({ ...newPatient, photoUrl: docs.map((d) => d.url).join(",") });
+                    }} />
+                    <DocumentUpload category="Reports" onDocumentsChange={(docs) => {
+                      setNewPatient({ ...newPatient, reportsUrl: docs.map((d) => d.url).join(",") });
+                    }} />
                   </div>
                 </div>
 
-                <Button className="w-full" disabled={!newPatient.name || !newPatient.age || registerPatient.isPending}
+                <Button className="w-full h-8" size="sm" disabled={!newPatient.name || !newPatient.age || registerPatient.isPending}
                   onClick={() => registerPatient.mutate()}>
                   {registerPatient.isPending ? "Registering..." : "Register & Continue"}
                 </Button>
@@ -395,29 +384,29 @@ export default function BillingDeskPage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         {/* LEFT: Services */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-3">
 
           {/* Services panel */}
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Stethoscope className="w-4 h-4" />Step 2 — Add Services
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Stethoscope className="w-4 h-4" />Add Services
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-2 space-y-2">
               <BillingQuickServices
                 entityId={Number(entityId)}
                 heads={safeHeads}
                 onPick={addHeadObjectToCart}
               />
               <Tabs defaultValue="heads">
-                <TabsList>
-                  <TabsTrigger value="heads">Individual Charges</TabsTrigger>
-                  <TabsTrigger value="packages">Health Packages</TabsTrigger>
+                <TabsList className="h-8">
+                  <TabsTrigger value="heads" className="text-xs">Individual</TabsTrigger>
+                  <TabsTrigger value="packages" className="text-xs">Packages</TabsTrigger>
                 </TabsList>
-                <TabsContent value="heads" className="mt-3 space-y-3">
+                <TabsContent value="heads" className="mt-2 space-y-2">
                   <div className="flex gap-2">
                     <Select value={pickHead} onValueChange={setPickHead}>
                       <SelectTrigger className="flex-1">
@@ -438,11 +427,11 @@ export default function BillingDeskPage() {
                     </Button>
                   </div>
                 </TabsContent>
-                <TabsContent value="packages" className="mt-3 space-y-2">
+                <TabsContent value="packages" className="mt-2 space-y-1">
                   {safePackages.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-4 text-center">No packages defined.</p>
+                    <p className="text-xs text-muted-foreground py-2 text-center">No packages</p>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
                       {safePackages.map((p) => {
                         const mrp = Number(p.mrpTotal);
                         const rate = Number(p.packageRate);
@@ -475,59 +464,58 @@ export default function BillingDeskPage() {
         {/* RIGHT: Cart + Payment */}
         <div>
           <Card className="sticky top-4">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Receipt className="w-4 h-4" />Bill Summary
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Receipt className="w-4 h-4" />Bill
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2 pt-2">
               {cart.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-6 text-center">No services added yet</p>
+                <p className="text-xs text-muted-foreground py-3 text-center">Empty</p>
               ) : (
-                <div className="space-y-2 max-h-56 overflow-y-auto">
+                <div className="space-y-1 max-h-40 overflow-y-auto">
                   {cart.map((c) => (
-                    <div key={c.key} className="flex items-center gap-2 text-sm border rounded-md p-2">
+                    <div key={c.key} className="flex items-center gap-1 text-xs border rounded-md p-1">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{c.name}</p>
-                        <p className="text-xs text-muted-foreground font-mono">{c.code}</p>
+                        <p className="font-medium truncate text-xs">{c.name}</p>
                       </div>
-                      <Input type="number" className="w-14 h-7 text-xs" min={1} value={c.quantity}
+                      <Input type="number" className="w-10 h-6 text-xs" min={1} value={c.quantity}
                         onChange={(e) => setCart(cart.map((x) => x.key === c.key ? { ...x, quantity: Math.max(1, Number(e.target.value)) } : x))} />
-                      <span className="w-20 text-right font-medium">₹{(c.rate * c.quantity).toLocaleString("en-IN")}</span>
-                      <Button size="icon" variant="ghost" className="h-7 w-7"
+                      <span className="w-16 text-right font-medium text-xs">₹{(c.rate * c.quantity).toLocaleString("en-IN")}</span>
+                      <Button size="icon" variant="ghost" className="h-6 w-6"
                         onClick={() => setCart(cart.filter((x) => x.key !== c.key))}>
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 className="w-2.5 h-2.5" />
                       </Button>
                     </div>
                   ))}
                 </div>
               )}
 
-              <Separator />
+              <Separator className="my-1" />
 
-              <div className="space-y-1.5 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>₹{totals.subtotal.toLocaleString("en-IN")}</span></div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Discount</span>
-                  <Input type="number" className="w-24 h-7 text-right" value={discount} onChange={(e) => setDiscount(e.target.value)} />
+              <div className="space-y-0.5 text-xs">
+                <div className="flex justify-between"><span className="text-muted-foreground">Sub</span><span className="font-medium">₹{totals.subtotal.toLocaleString("en-IN")}</span></div>
+                <div className="flex justify-between items-center gap-1">
+                  <span className="text-muted-foreground">Disc</span>
+                  <Input type="number" className="w-16 h-6 text-right text-xs" value={discount} onChange={(e) => setDiscount(e.target.value)} />
                 </div>
-                {totals.gst > 0 && <div className="flex justify-between"><span className="text-muted-foreground">GST</span><span>₹{totals.gst.toFixed(2)}</span></div>}
-                <Separator />
-                <div className="flex justify-between font-bold text-base"><span>Total</span><span>₹{totals.total.toLocaleString("en-IN")}</span></div>
+                {totals.gst > 0 && <div className="flex justify-between"><span className="text-muted-foreground">GST</span><span>₹{totals.gst.toFixed(0)}</span></div>}
+                <Separator className="my-0.5" />
+                <div className="flex justify-between font-bold text-sm"><span>Total</span><span>₹{totals.total.toLocaleString("en-IN")}</span></div>
               </div>
 
-              <Separator />
+              <Separator className="my-1" />
 
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1.5">
+                <div className="grid grid-cols-2 gap-1">
                   <div>
                     <Label className="text-xs">Type</Label>
                     <Select value={invoiceType} onValueChange={setInvoiceType}>
-                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="OPD">OPD</SelectItem>
                         <SelectItem value="IPD">IPD</SelectItem>
-                        <SelectItem value="TPA">TPA / Insurance</SelectItem>
+                        <SelectItem value="TPA">TPA</SelectItem>
                         <SelectItem value="Pharmacy">Pharmacy</SelectItem>
                       </SelectContent>
                     </Select>
@@ -535,7 +523,7 @@ export default function BillingDeskPage() {
                   <div>
                     <Label className="text-xs">Entity</Label>
                     <Select value={entityId} onValueChange={setEntityId}>
-                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {safeEntities.map((e) => <SelectItem key={e.id} value={String(e.id)}>{e.name}</SelectItem>)}
                       </SelectContent>
@@ -544,27 +532,27 @@ export default function BillingDeskPage() {
                 </div>
 
                 <div>
-                  <Label className="text-xs">Payment Mode</Label>
-                  <div className="grid grid-cols-4 gap-1 mt-1">
+                  <Label className="text-xs">Mode</Label>
+                  <div className="grid grid-cols-4 gap-0.5 mt-0.5">
                     {PAYMENT_MODES.map((m) => (
                       <Button key={m} type="button" size="sm" variant={paymentMode === m ? "default" : "outline"}
-                        onClick={() => setPaymentMode(m)} className="text-xs h-8">{m}</Button>
+                        onClick={() => setPaymentMode(m)} className="text-xs h-7">{m}</Button>
                     ))}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-1">
                   <div>
-                    <Label className="text-xs">Paid Amount</Label>
-                    <Input type="number" placeholder="0" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} className="h-9" />
+                    <Label className="text-xs">Paid</Label>
+                    <Input type="number" placeholder="0" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} className="h-7 text-xs" />
                     {paidAmount !== "" && Number(paidAmount) < totals.total && (
-                      <p className="text-xs text-orange-600 mt-1">Due ₹{(totals.total - Number(paidAmount)).toLocaleString("en-IN")}</p>
+                      <p className="text-xs text-orange-600 mt-0.5">Due ₹{(totals.total - Number(paidAmount)).toLocaleString("en-IN")}</p>
                     )}
                   </div>
                   <div>
-                    <Label className="text-xs">Collected By</Label>
+                    <Label className="text-xs">Collector</Label>
                     <Select value={collectedBy} onValueChange={setCollectedBy}>
-                      <SelectTrigger className="h-9"><SelectValue placeholder="—" /></SelectTrigger>
+                      <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="—" /></SelectTrigger>
                       <SelectContent>
                         {cashiers.map((e) => <SelectItem key={e.id} value={e.username!}>{e.name}</SelectItem>)}
                       </SelectContent>
@@ -572,10 +560,10 @@ export default function BillingDeskPage() {
                   </div>
                 </div>
 
-                <Button className="w-full" size="lg"
+                <Button className="w-full h-8" size="sm"
                   disabled={!patient || cart.length === 0 || generateInvoice.isPending}
                   onClick={() => generateInvoice.mutate()}>
-                  {generateInvoice.isPending ? "Generating..." : `Generate Invoice — ₹${totals.total.toLocaleString("en-IN")}`}
+                  {generateInvoice.isPending ? "Generating..." : `Invoice — ₹${totals.total.toLocaleString("en-IN")}`}
                 </Button>
               </div>
             </CardContent>
