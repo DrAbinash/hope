@@ -773,8 +773,19 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
     setForm({
       subjectiveComplaints: prevNote.subjectiveComplaints ? `[From previous day] ${prevNote.subjectiveComplaints}` : "",
       objectiveFindings: prevNote.objectiveFindings ? `[From previous day] ${prevNote.objectiveFindings}` : "",
-      vitals: prevNote.vitalsSummary ? { ...prevNote.vitalsSummary } : { temp: "", pulse: "", bp: "", rr: "", spo2: "" },
-      systemic: prevNote.examinationSystemic ? { ...prevNote.examinationSystemic } : { cns: "", cvs: "", rs: "", pa: "" },
+      vitals: {
+        temp: prevNote.vitalsSummary?.temp || "",
+        pulse: prevNote.vitalsSummary?.pulse || "",
+        bp: prevNote.vitalsSummary?.bp || "",
+        rr: prevNote.vitalsSummary?.rr || "",
+        spo2: prevNote.vitalsSummary?.spo2 || "",
+      },
+      systemic: {
+        cns: prevNote.examinationSystemic?.cns || "",
+        cvs: prevNote.examinationSystemic?.cvs || "",
+        rs: prevNote.examinationSystemic?.rs || "",
+        pa: prevNote.examinationSystemic?.pa || "",
+      },
       diagnosisAssessment: prevNote.diagnosisAssessment || "",
       plan: prevNote.plan || "",
       investigations: Array.isArray(prevNote.investigationsAdvised) ? prevNote.investigationsAdvised.join(", ") : "",
