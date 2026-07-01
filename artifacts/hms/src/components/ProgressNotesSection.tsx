@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
-import { FileText, Plus, Edit3, Printer, Clock, User, Heart, ChevronDown, ChevronUp, Sparkles, ShieldAlert, ListTodo, Info } from "lucide-react";
+import { FileText, Plus, Edit3, Printer, Clock, User, Heart, ChevronDown, ChevronUp, Sparkles, ShieldAlert, ListTodo, Info, Zap } from "lucide-react";
 
 interface Vitals {
   temp?: string;
@@ -25,6 +26,93 @@ interface SystemicExam {
   rs?: string;
   pa?: string;
 }
+
+// Quick select templates for common clinical findings
+const COMPLAINT_TEMPLATES = [
+  "No active complaints",
+  "Stable, resting",
+  "Mild discomfort",
+  "Pain in affected area",
+  "Fever",
+  "Shortness of breath",
+  "Nausea/Vomiting",
+  "Dizziness",
+];
+
+const VITAL_TEMPLATES = {
+  normal: { temp: "98.6", pulse: "72-80", bp: "120/80", rr: "16-20", spo2: "98-100" },
+  fever: { temp: "101.2", pulse: "88", bp: "120/80", rr: "18", spo2: "98" },
+  tachycardia: { temp: "98.6", pulse: "110", bp: "130/85", rr: "20", spo2: "97" },
+  hypotension: { temp: "98.6", pulse: "96", bp: "95/60", rr: "18", spo2: "98" },
+};
+
+const CNS_OPTIONS = [
+  "Conscious, oriented to time/place/person",
+  "Alert and responsive",
+  "Drowsy but arousable",
+  "Speech clear",
+  "Pupils reactive",
+  "Limb power normal",
+  "No focal neurological deficit",
+];
+
+const CVS_OPTIONS = [
+  "S1 S2 heard clearly",
+  "Regular rate and rhythm",
+  "No murmurs",
+  "Radial pulse felt",
+  "Good perfusion",
+  "No edema",
+  "BP within normal limits",
+];
+
+const RS_OPTIONS = [
+  "Bilateral breath sounds clear",
+  "No crackles/wheezes",
+  "Chest expansion normal",
+  "Respiratory rate normal",
+  "Oxygen saturation good",
+  "No accessory muscle use",
+  "Breathing easy",
+];
+
+const PA_OPTIONS = [
+  "Soft, non-tender",
+  "Normal bowel sounds",
+  "No distension",
+  "No organomegaly",
+  "No guarding",
+  "Abdomen lax",
+  "No rebound tenderness",
+];
+
+const INVESTIGATION_TEMPLATES = [
+  "CBC",
+  "LFT",
+  "KFT",
+  "Blood glucose",
+  "Lipid profile",
+  "Troponin",
+  "BNP",
+  "CXR",
+  "ECG",
+  "Ultrasound",
+  "CT scan",
+  "Blood cultures",
+];
+
+const FOLLOWUP_TEMPLATES = [
+  "Review vitals 4-hourly",
+  "Monitor I/O chart",
+  "Strict bed rest",
+  "Elevate head end",
+  "Deep breathing exercises",
+  "Early mobilization",
+  "Follow-up labs tomorrow",
+  "Review for discharge tomorrow",
+  "Contact doctor if condition worsens",
+  "Cardiac monitoring if indicated",
+];
 
 interface ProgressNote {
   id: number;
@@ -91,6 +179,14 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
     procedureNotes: "",
     followUpInstructions: "",
   });
+
+  // Checkbox templates for systemic examination
+  const [selectedCNS, setSelectedCNS] = useState<string[]>([]);
+  const [selectedCVS, setSelectedCVS] = useState<string[]>([]);
+  const [selectedRS, setSelectedRS] = useState<string[]>([]);
+  const [selectedPA, setSelectedPA] = useState<string[]>([]);
+  const [selectedInvestigations, setSelectedInvestigations] = useState<string[]>([]);
+  const [selectedFollowup, setSelectedFollowup] = useState<string[]>([]);
 
   const [medName, setMedName] = useState("");
   const [medDose, setMedDose] = useState("");
@@ -204,9 +300,64 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
       procedureNotes: "",
       followUpInstructions: "",
     });
+    setSelectedCNS([]);
+    setSelectedCVS([]);
+    setSelectedRS([]);
+    setSelectedPA([]);
+    setSelectedInvestigations([]);
+    setSelectedFollowup([]);
     setAiGenerated(false);
     setAiDraftInfo(null);
     setAiDraftOriginalValues(null);
+  };
+
+  const applyVitalTemplate = (template: keyof typeof VITAL_TEMPLATES) => {
+    setForm(f => ({ ...f, vitals: VITAL_TEMPLATES[template] }));
+    toast.success(`Applied ${template} vitals template`);
+  };
+
+  const toggleSystemicOption = (system: 'cns' | 'cvs' | 'rs' | 'pa', option: string) => {
+    if (system === 'cns') {
+      const updated = selectedCNS.includes(option)
+        ? selectedCNS.filter(x => x !== option)
+        : [...selectedCNS, option];
+      setSelectedCNS(updated);
+      setForm(f => ({ ...f, systemic: { ...f.systemic, cns: updated.join("; ") } }));
+    } else if (system === 'cvs') {
+      const updated = selectedCVS.includes(option)
+        ? selectedCVS.filter(x => x !== option)
+        : [...selectedCVS, option];
+      setSelectedCVS(updated);
+      setForm(f => ({ ...f, systemic: { ...f.systemic, cvs: updated.join("; ") } }));
+    } else if (system === 'rs') {
+      const updated = selectedRS.includes(option)
+        ? selectedRS.filter(x => x !== option)
+        : [...selectedRS, option];
+      setSelectedRS(updated);
+      setForm(f => ({ ...f, systemic: { ...f.systemic, rs: updated.join("; ") } }));
+    } else if (system === 'pa') {
+      const updated = selectedPA.includes(option)
+        ? selectedPA.filter(x => x !== option)
+        : [...selectedPA, option];
+      setSelectedPA(updated);
+      setForm(f => ({ ...f, systemic: { ...f.systemic, pa: updated.join("; ") } }));
+    }
+  };
+
+  const toggleInvestigation = (inv: string) => {
+    const updated = selectedInvestigations.includes(inv)
+      ? selectedInvestigations.filter(x => x !== inv)
+      : [...selectedInvestigations, inv];
+    setSelectedInvestigations(updated);
+    setForm(f => ({ ...f, investigations: updated.join(", ") }));
+  };
+
+  const toggleFollowup = (followup: string) => {
+    const updated = selectedFollowup.includes(followup)
+      ? selectedFollowup.filter(x => x !== followup)
+      : [...selectedFollowup, followup];
+    setSelectedFollowup(updated);
+    setForm(f => ({ ...f, followUpInstructions: updated.join("; ") }));
   };
 
   const handleOpenEdit = (note: ProgressNote) => {
@@ -234,6 +385,26 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
       procedureNotes: note.procedureNotes || "",
       followUpInstructions: note.followUpInstructions || "",
     });
+
+    // Restore checkbox states from existing data
+    if (note.examinationSystemic?.cns) {
+      setSelectedCNS(note.examinationSystemic.cns.split("; ").filter(Boolean));
+    }
+    if (note.examinationSystemic?.cvs) {
+      setSelectedCVS(note.examinationSystemic.cvs.split("; ").filter(Boolean));
+    }
+    if (note.examinationSystemic?.rs) {
+      setSelectedRS(note.examinationSystemic.rs.split("; ").filter(Boolean));
+    }
+    if (note.examinationSystemic?.pa) {
+      setSelectedPA(note.examinationSystemic.pa.split("; ").filter(Boolean));
+    }
+    if (note.investigationsAdvised) {
+      setSelectedInvestigations(note.investigationsAdvised);
+    }
+    if (note.followUpInstructions) {
+      setSelectedFollowup(note.followUpInstructions.split("; ").filter(Boolean));
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -591,63 +762,148 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Subjective Complaints</Label>
-                <Textarea value={form.subjectiveComplaints} onChange={e => setForm(f => ({ ...f, subjectiveComplaints: e.target.value }))} className="mt-1 h-16 rounded-xl" placeholder="Patient's complaints..." />
+            {/* Subjective Complaints with Quick Templates */}
+            <div className="border p-3 rounded-xl space-y-2">
+              <Label className="font-semibold flex items-center gap-1"><Zap className="w-3.5 h-3.5 text-amber-500" /> Subjective Complaints (Quick Select)</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {COMPLAINT_TEMPLATES.map(complaint => (
+                  <Button
+                    key={complaint}
+                    type="button"
+                    size="sm"
+                    variant={form.subjectiveComplaints === complaint ? "default" : "outline"}
+                    onClick={() => setForm(f => ({ ...f, subjectiveComplaints: complaint }))}
+                    className="h-7 text-xs rounded-lg"
+                  >
+                    {complaint}
+                  </Button>
+                ))}
               </div>
-              <div>
-                <Label>Objective Findings</Label>
-                <Textarea value={form.objectiveFindings} onChange={e => setForm(f => ({ ...f, objectiveFindings: e.target.value }))} className="mt-1 h-16 rounded-xl" placeholder="Clinical findings..." />
-              </div>
+              <Textarea value={form.subjectiveComplaints} onChange={e => setForm(f => ({ ...f, subjectiveComplaints: e.target.value }))} className="mt-2 h-14 rounded-lg text-xs" placeholder="Or type custom complaints..." />
             </div>
 
-            {/* Vitals Summary */}
+            {/* Objective Findings */}
+            <div>
+              <Label className="font-semibold">Objective Findings</Label>
+              <Textarea value={form.objectiveFindings} onChange={e => setForm(f => ({ ...f, objectiveFindings: e.target.value }))} className="mt-1 h-16 rounded-xl text-xs" placeholder="Clinical findings..." />
+            </div>
+
+            {/* Vitals Summary with Quick Templates */}
             <div className="border p-3 rounded-xl space-y-2">
-              <Label className="font-semibold flex items-center gap-1"><Heart className="w-3.5 h-3.5 text-rose-500" /> Vitals Summary</Label>
+              <Label className="font-semibold flex items-center gap-1"><Heart className="w-3.5 h-3.5 text-rose-500" /> Vitals Summary (Quick Templates)</Label>
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {Object.keys(VITAL_TEMPLATES).map(key => (
+                  <Button
+                    key={key}
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => applyVitalTemplate(key as keyof typeof VITAL_TEMPLATES)}
+                    className="h-7 text-xs rounded-lg capitalize"
+                  >
+                    {key === 'normal' ? '✓ Normal' : key}
+                  </Button>
+                ))}
+              </div>
               <div className="grid grid-cols-5 gap-2">
                 <div>
                   <Label className="text-[10px]">Temp (°F)</Label>
-                  <Input size={5} value={form.vitals.temp} onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, temp: e.target.value } }))} className="mt-1 h-8 rounded-lg" placeholder="98.6" />
+                  <Input size={5} value={form.vitals.temp} onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, temp: e.target.value } }))} className="mt-1 h-8 rounded-lg text-xs" placeholder="98.6" />
                 </div>
                 <div>
                   <Label className="text-[10px]">Pulse (bpm)</Label>
-                  <Input value={form.vitals.pulse} onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, pulse: e.target.value } }))} className="mt-1 h-8 rounded-lg" placeholder="72" />
+                  <Input value={form.vitals.pulse} onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, pulse: e.target.value } }))} className="mt-1 h-8 rounded-lg text-xs" placeholder="72" />
                 </div>
                 <div>
                   <Label className="text-[10px]">BP (mmHg)</Label>
-                  <Input value={form.vitals.bp} onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, bp: e.target.value } }))} className="mt-1 h-8 rounded-lg" placeholder="120/80" />
+                  <Input value={form.vitals.bp} onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, bp: e.target.value } }))} className="mt-1 h-8 rounded-lg text-xs" placeholder="120/80" />
                 </div>
                 <div>
                   <Label className="text-[10px]">Resp Rate (/min)</Label>
-                  <Input value={form.vitals.rr} onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, rr: e.target.value } }))} className="mt-1 h-8 rounded-lg" placeholder="18" />
+                  <Input value={form.vitals.rr} onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, rr: e.target.value } }))} className="mt-1 h-8 rounded-lg text-xs" placeholder="18" />
                 </div>
                 <div>
                   <Label className="text-[10px]">SpO2 (%)</Label>
-                  <Input value={form.vitals.spo2} onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, spo2: e.target.value } }))} className="mt-1 h-8 rounded-lg" placeholder="98" />
+                  <Input value={form.vitals.spo2} onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, spo2: e.target.value } }))} className="mt-1 h-8 rounded-lg text-xs" placeholder="98" />
                 </div>
               </div>
             </div>
 
-            {/* Systemic Exam */}
-            <div className="border p-3 rounded-xl space-y-2">
-              <Label className="font-semibold">Systemic Examination (CNS / CVS / RS / PA)</Label>
-              <div className="grid grid-cols-4 gap-2">
-                <div>
-                  <Label className="text-[10px]">CNS</Label>
-                  <Input value={form.systemic.cns} onChange={e => setForm(f => ({ ...f, systemic: { ...f.systemic, cns: e.target.value } }))} className="mt-1 h-8 rounded-lg" placeholder="Conscious/Oriented..." />
+            {/* Systemic Examination with Checkboxes */}
+            <div className="border p-3 rounded-xl space-y-3">
+              <Label className="font-semibold">Systemic Examination (Check Common Findings)</Label>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* CNS */}
+                <div className="border rounded-lg p-2 space-y-2 bg-slate-50/50 dark:bg-slate-900/20">
+                  <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">CNS (Central Nervous)</Label>
+                  <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                    {CNS_OPTIONS.map(option => (
+                      <div key={option} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`cns-${option}`}
+                          checked={selectedCNS.includes(option)}
+                          onCheckedChange={() => toggleSystemicOption('cns', option)}
+                          className="h-4 w-4"
+                        />
+                        <Label htmlFor={`cns-${option}`} className="text-[10px] cursor-pointer font-normal">{option}</Label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div>
-                  <Label className="text-[10px]">CVS</Label>
-                  <Input value={form.systemic.cvs} onChange={e => setForm(f => ({ ...f, systemic: { ...f.systemic, cvs: e.target.value } }))} className="mt-1 h-8 rounded-lg" placeholder="S1 S2 heard..." />
+
+                {/* CVS */}
+                <div className="border rounded-lg p-2 space-y-2 bg-red-50/30 dark:bg-red-950/20">
+                  <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">CVS (Cardiovascular)</Label>
+                  <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                    {CVS_OPTIONS.map(option => (
+                      <div key={option} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`cvs-${option}`}
+                          checked={selectedCVS.includes(option)}
+                          onCheckedChange={() => toggleSystemicOption('cvs', option)}
+                          className="h-4 w-4"
+                        />
+                        <Label htmlFor={`cvs-${option}`} className="text-[10px] cursor-pointer font-normal">{option}</Label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div>
-                  <Label className="text-[10px]">RS</Label>
-                  <Input value={form.systemic.rs} onChange={e => setForm(f => ({ ...f, systemic: { ...f.systemic, rs: e.target.value } }))} className="mt-1 h-8 rounded-lg" placeholder="Bilateral clear..." />
+
+                {/* RS */}
+                <div className="border rounded-lg p-2 space-y-2 bg-blue-50/30 dark:bg-blue-950/20">
+                  <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">RS (Respiratory)</Label>
+                  <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                    {RS_OPTIONS.map(option => (
+                      <div key={option} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`rs-${option}`}
+                          checked={selectedRS.includes(option)}
+                          onCheckedChange={() => toggleSystemicOption('rs', option)}
+                          className="h-4 w-4"
+                        />
+                        <Label htmlFor={`rs-${option}`} className="text-[10px] cursor-pointer font-normal">{option}</Label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div>
-                  <Label className="text-[10px]">PA (Abdomen)</Label>
-                  <Input value={form.systemic.pa} onChange={e => setForm(f => ({ ...f, systemic: { ...f.systemic, pa: e.target.value } }))} className="mt-1 h-8 rounded-lg" placeholder="Soft/Non-tender..." />
+
+                {/* PA */}
+                <div className="border rounded-lg p-2 space-y-2 bg-green-50/30 dark:bg-green-950/20">
+                  <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">PA (Abdominal)</Label>
+                  <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                    {PA_OPTIONS.map(option => (
+                      <div key={option} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`pa-${option}`}
+                          checked={selectedPA.includes(option)}
+                          onCheckedChange={() => toggleSystemicOption('pa', option)}
+                          className="h-4 w-4"
+                        />
+                        <Label htmlFor={`pa-${option}`} className="text-[10px] cursor-pointer font-normal">{option}</Label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -686,19 +942,50 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
-              <div className="col-span-1">
-                <Label>Investigations Advised</Label>
-                <Input value={form.investigations} onChange={e => setForm(f => ({ ...f, investigations: e.target.value }))} className="mt-1 h-9 rounded-lg" placeholder="CBC, Chest X-Ray..." />
+            {/* Investigations with Quick Select */}
+            <div className="border p-3 rounded-xl space-y-2">
+              <Label className="font-semibold flex items-center gap-1"><Zap className="w-3.5 h-3.5 text-purple-500" /> Investigations Advised (Quick Select)</Label>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {INVESTIGATION_TEMPLATES.map(inv => (
+                  <Button
+                    key={inv}
+                    type="button"
+                    size="sm"
+                    variant={selectedInvestigations.includes(inv) ? "default" : "outline"}
+                    onClick={() => toggleInvestigation(inv)}
+                    className="h-7 text-xs rounded-lg"
+                  >
+                    {inv}
+                  </Button>
+                ))}
               </div>
-              <div className="col-span-1">
-                <Label>Procedure Notes</Label>
-                <Input value={form.procedureNotes} onChange={e => setForm(f => ({ ...f, procedureNotes: e.target.value }))} className="mt-1 h-9 rounded-lg" placeholder="e.g. Catheterization..." />
+              <Input value={form.investigations} onChange={e => setForm(f => ({ ...f, investigations: e.target.value }))} className="h-9 rounded-lg text-xs" placeholder="Or enter custom investigations..." />
+            </div>
+
+            {/* Procedure Notes */}
+            <div>
+              <Label>Procedure Notes</Label>
+              <Input value={form.procedureNotes} onChange={e => setForm(f => ({ ...f, procedureNotes: e.target.value }))} className="mt-1 h-9 rounded-lg text-xs" placeholder="e.g. Catheterization, Aspiration..." />
+            </div>
+
+            {/* Follow-up Instructions with Quick Select */}
+            <div className="border p-3 rounded-xl space-y-2">
+              <Label className="font-semibold flex items-center gap-1"><Zap className="w-3.5 h-3.5 text-blue-500" /> Follow-Up Instructions (Quick Select)</Label>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {FOLLOWUP_TEMPLATES.map(followup => (
+                  <Button
+                    key={followup}
+                    type="button"
+                    size="sm"
+                    variant={selectedFollowup.includes(followup) ? "default" : "outline"}
+                    onClick={() => toggleFollowup(followup)}
+                    className="h-7 text-xs rounded-lg"
+                  >
+                    {followup}
+                  </Button>
+                ))}
               </div>
-              <div className="col-span-1">
-                <Label>Follow-Up Instructions</Label>
-                <Input value={form.followUpInstructions} onChange={e => setForm(f => ({ ...f, followUpInstructions: e.target.value }))} className="mt-1 h-9 rounded-lg" placeholder="Review in OPD..." />
-              </div>
+              <Input value={form.followUpInstructions} onChange={e => setForm(f => ({ ...f, followUpInstructions: e.target.value }))} className="h-9 rounded-lg text-xs" placeholder="Or enter custom follow-up..." />
             </div>
 
             <DialogFooter>
