@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +22,8 @@ import {
   FileSignature, Plus, Search, Printer, CheckCircle2, FileText,
 } from "lucide-react";
 import { CONSENT_TEMPLATES, type ConsentTemplate } from "./templates";
+import { DocumentIntegration } from "@/components/document-integration";
+import { DocumentUpload } from "@/components/document-upload";
 
 interface ConsentForm {
   id: number; formNo: string; formType: string; title: string;
@@ -319,6 +321,39 @@ export default function ConsentFormsPage() {
               ))}
             </TableBody>
           </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            Consent Form Scans & Documents
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="bg-rose-50 dark:bg-rose-950/20 p-3 rounded-lg border border-rose-200">
+            <p className="text-xs text-muted-foreground mb-3">
+              Upload signed consent form scans, witness acknowledgments, and related medico-legal documents for audit and compliance.
+            </p>
+            <DocumentUpload
+              category="Consent"
+              patientId={0}
+              module="Billing"
+              department="Compliance"
+              description="Signed consent form or medico-legal document"
+              tags={["consent", "medico-legal", "signed"]}
+              multiple={true}
+            />
+          </div>
+
+          <DocumentIntegration
+            patientId={0}
+            module="Billing"
+            title="All Consent Documents"
+            showUpload={false}
+            maxDocuments={40}
+          />
         </CardContent>
       </Card>
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,8 +18,10 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import {
-  Shield, Plus, IndianRupee, FileCheck2, Send, CheckCircle2, XCircle, Building2,
+  Shield, Plus, IndianRupee, FileCheck2, Send, CheckCircle2, XCircle, Building2, FileText,
 } from "lucide-react";
+import { DocumentIntegration } from "@/components/document-integration";
+import { DocumentUpload } from "@/components/document-upload";
 
 interface TpaProvider { id: number; name: string; code: string; contactPerson: string | null; phone: string | null; email: string | null; paymentTermDays: number; tdsPercent: string; status: string }
 interface Patient { id: number; name: string; uhid: string }
@@ -248,6 +250,7 @@ export default function InsurancePage() {
           <TabsTrigger value="claims">Claims</TabsTrigger>
           <TabsTrigger value="policies">Patient Policies</TabsTrigger>
           <TabsTrigger value="tpas">TPA Providers</TabsTrigger>
+          <TabsTrigger value="documents">📄 Documents</TabsTrigger>
         </TabsList>
 
         <TabsContent value="claims" className="space-y-3">
@@ -399,6 +402,41 @@ export default function InsurancePage() {
                   ))}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="documents" className="space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Insurance & TPA Documents
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="bg-blue-50 dark:bg-blue-950/20 p-3 rounded-lg border border-blue-200">
+                <p className="text-xs text-muted-foreground mb-3">
+                  Upload insurance certificates, TPA agreements, pre-authorization documents, claim settlement proofs, and related insurance documents.
+                </p>
+                <DocumentUpload
+                  category="Insurance"
+                  patientId={0}
+                  module="Billing"
+                  department="Insurance & TPA"
+                  description="Insurance certificate or TPA document"
+                  tags={["insurance", "tpa", "claim"]}
+                  multiple={true}
+                />
+              </div>
+
+              <DocumentIntegration
+                patientId={0}
+                module="Billing"
+                title="All Insurance Documents"
+                showUpload={false}
+                maxDocuments={35}
+              />
             </CardContent>
           </Card>
         </TabsContent>
