@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { BillingQuickServices } from "@/components/billing-quick-services";
 import { DocumentUpload } from "@/components/document-upload";
+import { DocumentIntegration } from "@/components/document-integration";
 
 interface Patient {
   id: number; uhid: string; name: string; age: number; gender: string;
@@ -275,19 +276,29 @@ export default function BillingDeskPage() {
             {patient && <Button variant="ghost" size="sm" onClick={() => setPatient(null)}>Change Patient</Button>}
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 pt-2">
+        <CardContent className="space-y-3 pt-2">
           {patient ? (
-            <div className="flex items-center gap-3 border rounded-lg p-2 bg-emerald-50/50 dark:bg-emerald-950/20">
-              <div className="flex-1">
-                <p className="font-semibold text-base flex items-center gap-2">
-                  {patient.name}
-                  <Badge variant="secondary" className="font-mono text-xs">{patient.uhid}</Badge>
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {patient.age} yr • {patient.gender} {patient.phone ? `• ${patient.phone}` : ""} {patient.address ? `• ${patient.address}` : ""}
-                </p>
+            <>
+              <div className="flex items-center gap-3 border rounded-lg p-2 bg-emerald-50/50 dark:bg-emerald-950/20">
+                <div className="flex-1">
+                  <p className="font-semibold text-base flex items-center gap-2">
+                    {patient.name}
+                    <Badge variant="secondary" className="font-mono text-xs">{patient.uhid}</Badge>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {patient.age} yr • {patient.gender} {patient.phone ? `• ${patient.phone}` : ""} {patient.address ? `• ${patient.address}` : ""}
+                  </p>
+                </div>
               </div>
-            </div>
+
+              <DocumentIntegration
+                patientId={patient.id}
+                module="Billing"
+                title="Patient Documents & Bills"
+                showUpload={true}
+                maxDocuments={10}
+              />
+            </>
           ) : (
             <div className="space-y-2">
               <div className="relative">
