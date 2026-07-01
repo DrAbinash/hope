@@ -13,6 +13,7 @@ import { useAuth } from "@/lib/auth";
 import { FileText, Plus, Edit3, Printer, Clock, User, Heart, ChevronDown, ChevronUp, Sparkles, ShieldAlert, ListTodo, Info, Zap } from "lucide-react";
 import VoiceDictationButton from "./VoiceDictationButton";
 import DrugInteractionChecker from "./DrugInteractionChecker";
+import SmartDiagnosisSuggestions from "./SmartDiagnosisSuggestions";
 
 interface Vitals {
   temp?: string;
@@ -1633,6 +1634,17 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
                 </div>
               </div>
             </div>
+
+            {/* AI Diagnosis Suggestions */}
+            {(selectedSymptoms.length > 0 || selectedFindings.length > 0) && (
+              <SmartDiagnosisSuggestions
+                symptoms={selectedSymptoms}
+                findings={selectedFindings}
+                onSelectDiagnosis={(diagnosis) => {
+                  setForm(f => ({ ...f, diagnosisAssessment: diagnosis }));
+                }}
+              />
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>
