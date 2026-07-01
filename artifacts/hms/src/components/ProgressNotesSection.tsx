@@ -15,6 +15,7 @@ import VoiceDictationButton from "./VoiceDictationButton";
 import DrugInteractionChecker from "./DrugInteractionChecker";
 import SmartDiagnosisSuggestions from "./SmartDiagnosisSuggestions";
 import VitalTrendsDashboard from "./VitalTrendsDashboard";
+import PrescriptionValidator from "./PrescriptionValidator";
 
 interface Vitals {
   temp?: string;
@@ -1720,9 +1721,12 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
                 ))}
               </div>
 
-              {form.medicines.length > 1 && (
-                <div className="mt-3">
-                  <DrugInteractionChecker medicines={form.medicines.map(m => m.name)} />
+              {form.medicines.length > 0 && (
+                <div className="mt-3 space-y-3">
+                  <PrescriptionValidator medicines={form.medicines.map(m => ({ name: m.name, dose: m.dose, frequency: m.action, duration: "" }))} />
+                  {form.medicines.length > 1 && (
+                    <DrugInteractionChecker medicines={form.medicines.map(m => m.name)} />
+                  )}
                 </div>
               )}
             </div>
