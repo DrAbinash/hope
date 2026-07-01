@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { FileText, Plus, Edit3, Printer, Clock, User, Heart, ChevronDown, ChevronUp, Sparkles, ShieldAlert, ListTodo, Info, Zap } from "lucide-react";
+import VoiceDictationButton from "./VoiceDictationButton";
 
 interface Vitals {
   temp?: string;
@@ -1403,7 +1404,13 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
                   </button>
                 ))}
               </div>
-              <Textarea value={form.subjectiveComplaints} onChange={e => setForm(f => ({ ...f, subjectiveComplaints: e.target.value }))} className="mt-2 h-14 rounded-lg text-xs" placeholder="Or type custom complaints..." />
+              <div className="flex gap-2 items-center mt-2">
+                <Textarea value={form.subjectiveComplaints} onChange={e => setForm(f => ({ ...f, subjectiveComplaints: e.target.value }))} className="h-14 rounded-lg text-xs flex-1" placeholder="Or type custom complaints..." />
+                <VoiceDictationButton
+                  onText={(text) => setForm(f => ({ ...f, subjectiveComplaints: f.subjectiveComplaints ? f.subjectiveComplaints + " " + text : text }))}
+                  tooltip="Hold to dictate complaints"
+                />
+              </div>
             </div>
 
             {/* Objective Findings - Chocolate Box Selector */}
@@ -1436,7 +1443,13 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
                   </button>
                 ))}
               </div>
-              <Textarea value={form.objectiveFindings} onChange={e => setForm(f => ({ ...f, objectiveFindings: e.target.value }))} className="mt-2 h-14 rounded-lg text-xs" placeholder="Or type custom findings..." />
+              <div className="flex gap-2 items-center mt-2">
+                <Textarea value={form.objectiveFindings} onChange={e => setForm(f => ({ ...f, objectiveFindings: e.target.value }))} className="h-14 rounded-lg text-xs flex-1" placeholder="Or type custom findings..." />
+                <VoiceDictationButton
+                  onText={(text) => setForm(f => ({ ...f, objectiveFindings: f.objectiveFindings ? f.objectiveFindings + " " + text : text }))}
+                  tooltip="Hold to dictate findings"
+                />
+              </div>
             </div>
 
             {/* Vitals Summary with Quick Templates */}
@@ -1623,11 +1636,23 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Diagnosis / Assessment</Label>
-                <Textarea value={form.diagnosisAssessment} onChange={e => setForm(f => ({ ...f, diagnosisAssessment: e.target.value }))} className="mt-1 h-16 rounded-xl" placeholder="Clinical assessment..." />
+                <div className="flex gap-2 items-center mt-1">
+                  <Textarea value={form.diagnosisAssessment} onChange={e => setForm(f => ({ ...f, diagnosisAssessment: e.target.value }))} className="h-16 rounded-xl flex-1" placeholder="Clinical assessment..." />
+                  <VoiceDictationButton
+                    onText={(text) => setForm(f => ({ ...f, diagnosisAssessment: f.diagnosisAssessment ? f.diagnosisAssessment + " " + text : text }))}
+                    tooltip="Hold to dictate assessment"
+                  />
+                </div>
               </div>
               <div>
                 <Label>Treatment Plan</Label>
-                <Textarea value={form.plan} onChange={e => setForm(f => ({ ...f, plan: e.target.value }))} className="mt-1 h-16 rounded-xl" placeholder="Plan details..." />
+                <div className="flex gap-2 items-center mt-1">
+                  <Textarea value={form.plan} onChange={e => setForm(f => ({ ...f, plan: e.target.value }))} className="h-16 rounded-xl flex-1" placeholder="Plan details..." />
+                  <VoiceDictationButton
+                    onText={(text) => setForm(f => ({ ...f, plan: f.plan ? f.plan + " " + text : text }))}
+                    tooltip="Hold to dictate plan"
+                  />
+                </div>
               </div>
             </div>
 
@@ -1732,7 +1757,13 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
             {/* Procedure Notes */}
             <div>
               <Label>Procedure Notes</Label>
-              <Input value={form.procedureNotes} onChange={e => setForm(f => ({ ...f, procedureNotes: e.target.value }))} className="mt-1 h-9 rounded-lg text-xs" placeholder="e.g. Catheterization, Aspiration..." />
+              <div className="flex gap-2 items-center mt-1">
+                <Input value={form.procedureNotes} onChange={e => setForm(f => ({ ...f, procedureNotes: e.target.value }))} className="h-9 rounded-lg text-xs flex-1" placeholder="e.g. Catheterization, Aspiration..." />
+                <VoiceDictationButton
+                  onText={(text) => setForm(f => ({ ...f, procedureNotes: f.procedureNotes ? f.procedureNotes + " " + text : text }))}
+                  tooltip="Hold to dictate procedures"
+                />
+              </div>
             </div>
 
             {/* Follow-up Instructions with Quick Select */}
@@ -1763,7 +1794,13 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
                   </Button>
                 ))}
               </div>
-              <Input value={form.followUpInstructions} onChange={e => setForm(f => ({ ...f, followUpInstructions: e.target.value }))} className="h-9 rounded-lg text-xs" placeholder="Or enter custom follow-up..." />
+              <div className="flex gap-2 items-center">
+                <Input value={form.followUpInstructions} onChange={e => setForm(f => ({ ...f, followUpInstructions: e.target.value }))} className="h-9 rounded-lg text-xs flex-1" placeholder="Or enter custom follow-up..." />
+                <VoiceDictationButton
+                  onText={(text) => setForm(f => ({ ...f, followUpInstructions: f.followUpInstructions ? f.followUpInstructions + " " + text : text }))}
+                  tooltip="Hold to dictate follow-up"
+                />
+              </div>
             </div>
 
             <DialogFooter>
