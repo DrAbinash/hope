@@ -12,9 +12,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Search, FileText, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, FileText, Pencil, Trash2, Zap } from "lucide-react";
 import { MedicineSearch, type MedicineLite } from "@/components/medicine-search";
 import { ChipRow, HINDI_DOSE, HINDI_TIMING, HINDI_FREQ } from "@/components/hindi-chips";
+import PrescriptionTemplateBuilder from "@/components/PrescriptionTemplateBuilder";
 
 interface RxItem {
   medicineId?: number; medicineName: string; genericName?: string;
@@ -151,6 +152,31 @@ export default function PrescriptionTemplatesPage() {
         </div>
         <Button onClick={openNew} data-testid="new-template"><Plus className="mr-2 h-4 w-4" />New Template</Button>
       </div>
+
+      {/* Quick Prescription Builder */}
+      <PrescriptionTemplateBuilder
+        onSelectMedicines={(meds) => {
+          setForm(f => ({
+            ...f,
+            medicines: meds.map(m => ({
+              medicineId: undefined,
+              medicineName: m.name,
+              genericName: m.genericName,
+              dose: m.dose,
+              timing: m.timing,
+              frequency: m.frequency,
+              duration: m.duration,
+              qty: "",
+              notes: "",
+            }))
+          }));
+        }}
+        onSelectTests={(labTests, radTests) => {
+          const labStr = labTests.map(t => t.name).join(", ");
+          const radStr = radTests.map(t => t.name).join(", ");
+          setForm(f => ({ ...f, labTests: labStr, radiologyTests: radStr }));
+        }}
+      />
 
       <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setEditId(null); setForm(EMPTY_FORM); } }}>
         <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-auto">
