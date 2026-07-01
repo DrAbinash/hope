@@ -3,10 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Upload, X, Eye, Download, File, FileText, Image as ImageIcon, Loader2, RotateCw, Crop, Maximize2, QrCode } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Upload, X, Eye, Download, File, FileText, Image as ImageIcon, Loader2, RotateCw, Crop, QrCode, AlertCircle, CheckCircle2, Copy } from "lucide-react";
 import { toast } from "sonner";
-import { compressImage, rotateImage } from "@/lib/document-utils";
+import { compressImage, rotateImage, hashFile } from "@/lib/document-utils";
 import { MobileDocumentQR } from "@/components/mobile-document-qr";
 
 interface UploadedDocument {
@@ -18,6 +19,16 @@ interface UploadedDocument {
   uploadedAt: Date;
   uploadedBy?: string;
   category?: string;
+  hash?: string;
+  isDuplicate?: boolean;
+}
+
+interface UploadProgress {
+  fileId: string;
+  fileName: string;
+  progress: number;
+  status: "pending" | "uploading" | "complete" | "error";
+  error?: string;
 }
 
 interface DocumentUploadProps {
@@ -53,11 +64,15 @@ export function DocumentUpload({
   const [webcamError, setWebcamError] = useState<string | null>(null);
   const [rotation, setRotation] = useState(0);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     return () => {
@@ -103,6 +118,120 @@ export function DocumentUpload({
     const updated = documents.filter((d) => d.id !== id);
     setDocuments(updated);
     onDocumentsChange?.(updated);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (e.currentTarget === dropZoneRef.current) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const files = e.dataTransfer.files;
+    if (files) {
+      handleFileSelect(files);
+    }
+  };
+
+  const handleBatchUpload = async () => {
+    if (selectedFiles.length === 0) {
+      toast.error("Select files first");
+      return;
+    }
+
+    setIsUploading(true);
+    const progress: UploadProgress[] = selectedFiles.map((f, i) => ({
+      fileId: `${Date.now()}-${i}`,
+      fileName: f.name,
+      progress: 0,
+      status: "pending",
+    }));
+    setUploadProgress(progress);
+
+    const newDocs: UploadedDocument[] = [];
+    const existingHashes = new Set(documents.map((d) => d.hash));
+
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const file = selectedFiles[i];
+      const fileId = progress[i].fileId;
+
+      try {
+        setUploadProgress((prev) =>
+          prev.map((p) => (p.fileId === fileId ? { ...p, status: "uploading", progress: 25 } : p))
+        );
+
+        const hash = await hashFile(file);
+
+        if (existingHashes.has(hash)) {
+          setUploadProgress((prev) =>
+            prev.map((p) =>
+              p.fileId === fileId
+                ? { ...p, status: "error", error: "Duplicate file detected", progress: 100 }
+                : p
+            )
+          );
+          toast.warning(`${file.name} is a duplicate`);
+          continue;
+        }
+
+        setUploadProgress((prev) =>
+          prev.map((p) => (p.fileId === fileId ? { ...p, progress: 50 } : p))
+        );
+
+        const compressed = await compressImage(file);
+        setUploadProgress((prev) =>
+          prev.map((p) => (p.fileId === fileId ? { ...p, progress: 75 } : p))
+        );
+
+        const newDoc: UploadedDocument = {
+          id: fileId,
+          name: file.name,
+          size: compressed.size,
+          type: file.type,
+          url: URL.createObjectURL(compressed),
+          uploadedAt: new Date(),
+          category,
+          hash,
+        };
+
+        newDocs.push(newDoc);
+        existingHashes.add(hash);
+
+        setUploadProgress((prev) =>
+          prev.map((p) => (p.fileId === fileId ? { ...p, status: "complete", progress: 100 } : p))
+        );
+      } catch (e) {
+        setUploadProgress((prev) =>
+          prev.map((p) =>
+            p.fileId === fileId
+              ? { ...p, status: "error", error: e instanceof Error ? e.message : "Upload failed", progress: 0 }
+              : p
+          )
+        );
+        toast.error(`Failed to process ${file.name}`);
+      }
+    }
+
+    const updated = multiple ? [...documents, ...newDocs] : newDocs;
+    setDocuments(updated);
+    onDocumentsChange?.(updated);
+    setSelectedFiles([]);
+    setUploadProgress([]);
+    setIsUploading(false);
+
+    if (newDocs.length > 0) {
+      toast.success(`${newDocs.length} document(s) uploaded`);
+    }
   };
 
   const startWebcam = async () => {
@@ -211,6 +340,22 @@ export function DocumentUpload({
     <div className="space-y-2">
       <Label className="text-xs font-medium">{category}</Label>
 
+      {/* Drag & Drop Zone */}
+      <div
+        ref={dropZoneRef}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`border-2 border-dashed rounded-lg p-3 text-center transition ${
+          isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/30"
+        }`}
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <Upload className="w-4 h-4 mx-auto mb-1 text-muted-foreground" />
+        <p className="text-xs font-medium">Drag files here or click</p>
+        <p className="text-xs text-muted-foreground">Max {(maxSize / 1024 / 1024).toFixed(0)}MB per file</p>
+      </div>
+
       {/* Upload Buttons */}
       <div className="flex flex-wrap gap-2">
         <Button
@@ -218,10 +363,10 @@ export function DocumentUpload({
           variant="outline"
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading}
-          className="h-8 text-xs"
+          className="h-8 text-xs flex-1"
         >
           <Upload className="w-3 h-3 mr-1" />
-          Choose Files
+          Choose
         </Button>
 
         {allowWebcam && (
@@ -229,7 +374,7 @@ export function DocumentUpload({
             size="sm"
             variant="outline"
             disabled={isUploading || showWebcam}
-            className="h-8 text-xs"
+            className="h-8 text-xs flex-1"
             onClick={startWebcam}
           >
             📷 Webcam
@@ -241,26 +386,69 @@ export function DocumentUpload({
             size="sm"
             variant="outline"
             disabled={isUploading}
-            className="h-8 text-xs"
+            className="h-8 text-xs flex-1"
             onClick={() => setShowMobileQR(true)}
           >
-            📱 Mobile QR
-          </Button>
-        )}
-
-        {allowScanner && (
-          <Button size="sm" variant="outline" disabled={isUploading} className="h-8 text-xs">
-            📠 Scanner
+            📱 QR
           </Button>
         )}
       </div>
+
+      {/* Batch Upload Selection */}
+      {selectedFiles.length > 0 && (
+        <Card className="bg-muted/50 border-primary/30">
+          <CardContent className="p-2">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold">{selectedFiles.length} files selected</p>
+              <Button size="sm" variant="ghost" className="h-5 text-xs" onClick={() => setSelectedFiles([])}>
+                Clear
+              </Button>
+            </div>
+            <Button
+              size="sm"
+              className="w-full h-7 text-xs"
+              onClick={handleBatchUpload}
+              disabled={isUploading}
+            >
+              {isUploading ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Upload className="w-3 h-3 mr-1" />}
+              Upload {selectedFiles.length} File{selectedFiles.length !== 1 ? "s" : ""}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Upload Progress */}
+      {uploadProgress.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs">Upload Progress</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 pt-0">
+            {uploadProgress.map((item) => (
+              <div key={item.fileId} className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="truncate font-medium">{item.fileName}</span>
+                  {item.status === "complete" && <CheckCircle2 className="w-3 h-3 text-green-600" />}
+                  {item.status === "error" && <AlertCircle className="w-3 h-3 text-red-600" />}
+                  {item.status === "uploading" && <Loader2 className="w-3 h-3 animate-spin" />}
+                </div>
+                <Progress value={item.progress} className="h-1" />
+                {item.error && <p className="text-xs text-red-600">{item.error}</p>}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <Input
         ref={fileInputRef}
         type="file"
         multiple={multiple}
         accept={acceptTypes.join(",")}
-        onChange={(e) => handleFileSelect(e.target.files)}
+        onChange={(e) => {
+          handleFileSelect(e.target.files);
+          if (e.target.files) setSelectedFiles(Array.from(e.target.files));
+        }}
         className="hidden"
       />
 
@@ -270,11 +458,16 @@ export function DocumentUpload({
           {documents.map((doc) => (
             <div
               key={doc.id}
-              className="flex items-center gap-2 p-2 rounded-md border bg-muted/30 text-xs"
+              className={`flex items-center gap-2 p-2 rounded-md border text-xs ${
+                doc.isDuplicate ? "bg-yellow-50 border-yellow-200 dark:bg-yellow-950/20" : "bg-muted/30"
+              }`}
             >
               {getFileIcon(doc.type)}
               <div className="flex-1 min-w-0">
-                <p className="truncate font-medium">{doc.name}</p>
+                <div className="flex items-center gap-1">
+                  <p className="truncate font-medium">{doc.name}</p>
+                  {doc.isDuplicate && <Badge variant="secondary" className="text-xs bg-yellow-200">Duplicate</Badge>}
+                </div>
                 <p className="text-muted-foreground">{formatFileSize(doc.size)}</p>
               </div>
               <div className="flex gap-1 shrink-0">
