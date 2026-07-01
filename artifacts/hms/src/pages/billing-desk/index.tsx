@@ -23,7 +23,7 @@ import { BillingQuickServices } from "@/components/billing-quick-services";
 
 interface Patient {
   id: number; uhid: string; name: string; age: number; gender: string;
-  phone: string | null;
+  phone: string | null; address?: string;
 }
 interface BillingHead {
   id: number; code: string; name: string; category: string;
@@ -56,9 +56,10 @@ export default function BillingDeskPage() {
   // --- Patient state ---
   const [patient, setPatient] = useState<Patient | null>(null);
   const [search, setSearch] = useState("");
-  const [showRegister, setShowRegister] = useState(false);
+  const [expandRegister, setExpandRegister] = useState(false);
   const [newPatient, setNewPatient] = useState({
     name: "", age: "", gender: "Male", phone: "", address: "",
+    guardianName: "", guardianPhone: "", idCardUrl: "", photoUrl: "", reportsUrl: "",
   });
 
   // --- Cart + payment state ---
@@ -143,6 +144,11 @@ export default function BillingDeskPage() {
           gender: newPatient.gender,
           phone: newPatient.phone,
           address: newPatient.address,
+          guardianName: newPatient.guardianName || null,
+          guardianPhone: newPatient.guardianPhone || null,
+          idCardUrl: newPatient.idCardUrl || null,
+          photoUrl: newPatient.photoUrl || null,
+          reportsUrl: newPatient.reportsUrl || null,
         }),
       });
       if (!r.ok) throw new Error("Failed to register patient");
@@ -151,8 +157,8 @@ export default function BillingDeskPage() {
     onSuccess: (p) => {
       toast.success(`Registered ${p.name} (${p.uhid})`);
       setPatient(p);
-      setShowRegister(false);
-      setNewPatient({ name: "", age: "", gender: "Male", phone: "", address: "" });
+      setExpandRegister(false);
+      setNewPatient({ name: "", age: "", gender: "Male", phone: "", address: "", guardianName: "", guardianPhone: "", idCardUrl: "", photoUrl: "", reportsUrl: "" });
       qc.invalidateQueries({ queryKey: ["/api/patients"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -260,61 +266,140 @@ export default function BillingDeskPage() {
         <p className="text-muted-foreground text-sm">Register patient, add services, collect payment — all in one screen.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* LEFT: Patient + Services */}
-        <div className="lg:col-span-2 space-y-4">
-          {/* Patient panel */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <UserCheck className="w-4 h-4" />Step 1 — Patient
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {patient ? (
-                <div className="flex items-center justify-between border rounded-lg p-3 bg-emerald-50/50 dark:bg-emerald-950/20">
-                  <div>
-                    <p className="font-semibold flex items-center gap-2">
-                      {patient.name}
-                      <Badge variant="secondary" className="font-mono text-xs">{patient.uhid}</Badge>
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {patient.age} yr • {patient.gender} {patient.phone ? `• ${patient.phone}` : ""}
-                    </p>
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={() => setPatient(null)}>Change</Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input placeholder="Search by name, UHID, or phone..." value={search}
-                      onChange={(e) => setSearch(e.target.value)} className="pl-10" />
-                  </div>
-                  {search.length >= 2 && safePatients.length > 0 && (
-                    <div className="border rounded-lg divide-y max-h-60 overflow-y-auto">
-                      {safePatients.slice(0, 10).map((p) => (
-                        <button key={p.id} onClick={() => { setPatient(p); setSearch(""); }}
-                          className="w-full text-left p-2 px-3 hover:bg-muted text-sm flex justify-between items-center">
-                          <span>
-                            <span className="font-medium">{p.name}</span>
-                            <span className="text-muted-foreground ml-2 text-xs">{p.age}{p.gender[0]} {p.phone}</span>
-                          </span>
-                          <Badge variant="outline" className="font-mono text-xs">{p.uhid}</Badge>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {search.length >= 2 && safePatients.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-2">No patient found.</p>
-                  )}
-                  <Button variant="outline" onClick={() => setShowRegister(true)} className="w-full">
-                    <UserPlus className="w-4 h-4 mr-2" />Register New Patient
-                  </Button>
+      {/* Registration Form — Always Expanded */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <UserPlus className="w-4 h-4" />Patient Registration / Search
+            </span>
+            {patient && <Button variant="ghost" size="sm" onClick={() => setPatient(null)}>Change Patient</Button>}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {patient ? (
+            <div className="flex items-center gap-4 border rounded-lg p-4 bg-emerald-50/50 dark:bg-emerald-950/20">
+              <div className="flex-1">
+                <p className="font-semibold text-lg flex items-center gap-2">
+                  {patient.name}
+                  <Badge variant="secondary" className="font-mono text-xs">{patient.uhid}</Badge>
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {patient.age} yr • {patient.gender} {patient.phone ? `• ${patient.phone}` : ""} {patient.address ? `• ${patient.address}` : ""}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input placeholder="Search by name, UHID, or phone..." value={search}
+                  onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+              </div>
+              {search.length >= 2 && safePatients.length > 0 && (
+                <div className="border rounded-lg divide-y max-h-60 overflow-y-auto">
+                  {safePatients.slice(0, 10).map((p) => (
+                    <button key={p.id} onClick={() => { setPatient(p); setSearch(""); }}
+                      className="w-full text-left p-3 hover:bg-muted text-sm flex justify-between items-center">
+                      <span>
+                        <span className="font-medium">{p.name}</span>
+                        <span className="text-muted-foreground ml-2 text-xs">{p.age}{p.gender[0]} {p.phone}</span>
+                      </span>
+                      <Badge variant="outline" className="font-mono text-xs">{p.uhid}</Badge>
+                    </button>
+                  ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
+              {search.length >= 2 && safePatients.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">No patient found. Register new patient below.</p>
+              )}
+
+              {/* Registration Form — Always Visible */}
+              <div className="border-t pt-4 space-y-4">
+                <h3 className="font-semibold text-sm">Register New Patient</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="col-span-1 md:col-span-2 lg:col-span-3">
+                    <Label className="text-xs font-medium">Full Name *</Label>
+                    <Input placeholder="Patient name" value={newPatient.name} onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-medium">Age *</Label>
+                    <Input type="number" placeholder="Age" min={0} max={150} value={newPatient.age} onChange={(e) => setNewPatient({ ...newPatient, age: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-medium">Gender *</Label>
+                    <Select value={newPatient.gender} onValueChange={(v) => setNewPatient({ ...newPatient, gender: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Male">Male</SelectItem>
+                        <SelectItem value="Female">Female</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-medium">Phone</Label>
+                    <Input placeholder="Phone number" value={newPatient.phone} onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })} />
+                  </div>
+                  <div className="col-span-1 md:col-span-2 lg:col-span-3">
+                    <Label className="text-xs font-medium">Address</Label>
+                    <Input placeholder="Full address" value={newPatient.address} onChange={(e) => setNewPatient({ ...newPatient, address: e.target.value })} />
+                  </div>
+                </div>
+
+                {/* IPD-specific demographics */}
+                <div className="border-t pt-3 space-y-3">
+                  <h4 className="text-xs font-semibold text-muted-foreground">Additional Demographics (for IPD conversion)</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs font-medium">Guardian Name</Label>
+                      <Input placeholder="Guardian/Next of kin name" value={newPatient.guardianName} onChange={(e) => setNewPatient({ ...newPatient, guardianName: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium">Guardian Phone</Label>
+                      <Input placeholder="Guardian contact" value={newPatient.guardianPhone} onChange={(e) => setNewPatient({ ...newPatient, guardianPhone: e.target.value })} />
+                    </div>
+                  </div>
+
+                  {/* Document uploads */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <Label className="text-xs font-medium">ID Card / Aadhar</Label>
+                      <Input type="file" accept="image/*,.pdf" className="text-xs h-9" onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) setNewPatient({ ...newPatient, idCardUrl: file.name });
+                      }} />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium">Photo</Label>
+                      <Input type="file" accept="image/*" className="text-xs h-9" onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) setNewPatient({ ...newPatient, photoUrl: file.name });
+                      }} />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium">Reports / Documents</Label>
+                      <Input type="file" accept="image/*,.pdf" className="text-xs h-9" onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) setNewPatient({ ...newPatient, reportsUrl: file.name });
+                      }} />
+                    </div>
+                  </div>
+                </div>
+
+                <Button className="w-full" disabled={!newPatient.name || !newPatient.age || registerPatient.isPending}
+                  onClick={() => registerPatient.mutate()}>
+                  {registerPatient.isPending ? "Registering..." : "Register & Continue"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* LEFT: Services */}
+        <div className="lg:col-span-2 space-y-4">
 
           {/* Services panel */}
           <Card>
@@ -500,48 +585,6 @@ export default function BillingDeskPage() {
         </div>
       </div>
 
-      {/* Register dialog */}
-      <Dialog open={showRegister} onOpenChange={setShowRegister}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Register New Patient</DialogTitle></DialogHeader>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
-              <Label>Full Name *</Label>
-              <Input value={newPatient.name} onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })} />
-            </div>
-            <div>
-              <Label>Age *</Label>
-              <Input type="number" value={newPatient.age} onChange={(e) => setNewPatient({ ...newPatient, age: e.target.value })} />
-            </div>
-            <div>
-              <Label>Gender *</Label>
-              <Select value={newPatient.gender} onValueChange={(v) => setNewPatient({ ...newPatient, gender: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Male">Male</SelectItem>
-                  <SelectItem value="Female">Female</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="col-span-2">
-              <Label>Phone</Label>
-              <Input value={newPatient.phone} onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })} />
-            </div>
-            <div className="col-span-2">
-              <Label>Address</Label>
-              <Input value={newPatient.address} onChange={(e) => setNewPatient({ ...newPatient, address: e.target.value })} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRegister(false)}>Cancel</Button>
-            <Button disabled={!newPatient.name || !newPatient.age || registerPatient.isPending}
-              onClick={() => registerPatient.mutate()}>
-              {registerPatient.isPending ? "Registering..." : "Register & Continue"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Success dialog */}
       <Dialog open={!!successInvoice} onOpenChange={(o) => !o && resetForNext()}>
