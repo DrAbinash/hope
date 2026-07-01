@@ -32,9 +32,14 @@ interface UploadProgress {
 }
 
 interface DocumentUploadProps {
-  category: string;
+  category?: string;
   patientId?: number | string;
+  module?: "OPD" | "IPD" | "Radiology" | "Lab" | "Billing" | "Registration";
+  department?: string;
+  description?: string;
+  tags?: string[];
   onDocumentsChange?: (docs: UploadedDocument[]) => void;
+  onClose?: () => void;
   maxSize?: number;
   acceptTypes?: string[];
   multiple?: boolean;
@@ -45,9 +50,14 @@ interface DocumentUploadProps {
 }
 
 export function DocumentUpload({
-  category,
+  category = "Other",
   patientId,
+  module,
+  department,
+  description,
+  tags,
   onDocumentsChange,
+  onClose,
   maxSize = 10 * 1024 * 1024,
   acceptTypes = ["image/*", ".pdf"],
   multiple = true,
