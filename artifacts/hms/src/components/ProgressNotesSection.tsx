@@ -141,6 +141,45 @@ const DEFAULT_MEDICATION_TEMPLATES = {
   ],
 };
 
+const CONDITION_TEMPLATES = {
+  chf: {
+    name: "Heart Failure (CHF)",
+    investigations: ["BNP", "ECG", "CXR", "Troponin", "LFT", "KFT"],
+    followups: ["Review vitals 4-hourly", "Monitor I/O chart", "Strict bed rest", "Elevate head end", "Follow-up labs tomorrow"],
+    medications: ["fever"]
+  },
+  pneumonia: {
+    name: "Pneumonia",
+    investigations: ["CBC", "CXR", "Blood cultures", "Blood glucose", "KFT"],
+    followups: ["Review vitals 4-hourly", "Deep breathing exercises", "Oxygen if needed", "Follow-up labs tomorrow"],
+    medications: ["fever", "infection"]
+  },
+  postOp: {
+    name: "Post-Operative",
+    investigations: ["CBC", "CXR", "KFT"],
+    followups: ["Review vitals 4-hourly", "Early mobilization", "Deep breathing exercises", "Review for discharge tomorrow"],
+    medications: ["postOp"]
+  },
+  acuteGastroenteritis: {
+    name: "Acute Gastroenteritis",
+    investigations: ["CBC", "Blood glucose", "KFT"],
+    followups: ["Monitor I/O chart", "Elevate head end", "Contact doctor if condition worsens"],
+    medications: ["painAbdomen"]
+  },
+  sepsis: {
+    name: "Sepsis/Infection",
+    investigations: ["CBC", "Blood cultures", "LFT", "KFT", "Lactate"],
+    followups: ["Review vitals hourly", "Monitor I/O chart", "Cardiac monitoring if indicated"],
+    medications: ["fever", "infection"]
+  },
+  stroke: {
+    name: "Stroke/Neuro",
+    investigations: ["CT scan", "ECG", "CBC", "Blood glucose", "Coagulation studies"],
+    followups: ["Neuro checks 2-hourly", "Strict bed rest", "Contact doctor if condition worsens"],
+    medications: ["fever"]
+  },
+};
+
 interface ProgressNote {
   id: number;
   ipdAdmissionId: number;
@@ -215,6 +254,7 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
   const [selectedInvestigations, setSelectedInvestigations] = useState<string[]>([]);
   const [selectedFollowup, setSelectedFollowup] = useState<string[]>([]);
   const [selectedMedicationTemplates, setSelectedMedicationTemplates] = useState<string[]>([]);
+  const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
 
   // Editable templates with localStorage persistence
   const [investigationTemplates, setInvestigationTemplates] = useState<string[]>(() => {
@@ -356,6 +396,7 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
     setSelectedInvestigations([]);
     setSelectedFollowup([]);
     setSelectedMedicationTemplates([]);
+    setSelectedConditions([]);
     setAiGenerated(false);
     setAiDraftInfo(null);
     setAiDraftOriginalValues(null);
@@ -476,6 +517,52 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
 
     if (updated.length > 0) {
       toast.success(`Merged ${finalMeds.length} medications from ${updated.length} template(s)`);
+    }
+  };
+
+  const toggleConditionTemplate = (conditionKey: string) => {
+    const updated = selectedConditions.includes(conditionKey)
+      ? selectedConditions.filter(x => x !== conditionKey)
+      : [...selectedConditions, conditionKey];
+    setSelectedConditions(updated);
+
+    // Merge all data from selected conditions
+    const mergedInv = new Set<string>();
+    const mergedFollowup = new Set<string>();
+    const mergedMeds: { [key: string]: { name: string; dose: string; action: "Added" | "Stopped" | "Modified" } } = {};
+
+    updated.forEach(key => {
+      const condition = CONDITION_TEMPLATES[key as keyof typeof CONDITION_TEMPLATES];
+      if (condition) {
+        // Merge investigations
+        condition.investigations.forEach(inv => mergedInv.add(inv));
+
+        // Merge follow-ups
+        condition.followups.forEach(followup => mergedFollowup.add(followup));
+
+        // Merge medications
+        condition.medications.forEach(medKey => {
+          const meds = DEFAULT_MEDICATION_TEMPLATES[medKey as keyof typeof DEFAULT_MEDICATION_TEMPLATES];
+          if (meds) {
+            meds.forEach(med => {
+              mergedMeds[med.name] = { name: med.name, dose: med.dose, action: "Added" };
+            });
+          }
+        });
+      }
+    });
+
+    setSelectedInvestigations(Array.from(mergedInv));
+    setSelectedFollowup(Array.from(mergedFollowup));
+    setForm(f => ({
+      ...f,
+      investigations: Array.from(mergedInv).join(", "),
+      followUpInstructions: Array.from(mergedFollowup).join("; "),
+      medicines: Object.values(mergedMeds),
+    }));
+
+    if (updated.length > 0) {
+      toast.success(`Loaded ${updated.length} condition template(s) - ${Array.from(mergedInv).length} investigations, ${Array.from(mergedFollowup).length} follow-ups, ${Object.keys(mergedMeds).length} medications`);
     }
   };
 
@@ -1179,6 +1266,30 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
                   </Badge>
                 ))}
               </div>
+            </div>
+
+            {/* Condition-Based Quick Select */}
+            <div className="border p-3 rounded-xl space-y-2 bg-indigo-50/30 dark:bg-indigo-950/20">
+              <Label className="font-semibold">Select by Condition (Quick Fill)</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {Object.entries(CONDITION_TEMPLATES).map(([key, template]) => (
+                  <Button
+                    key={key}
+                    type="button"
+                    size="sm"
+                    variant={selectedConditions.includes(key) ? "default" : "outline"}
+                    onClick={() => toggleConditionTemplate(key)}
+                    className="h-7 text-xs rounded-lg"
+                  >
+                    {template.name}
+                  </Button>
+                ))}
+              </div>
+              {selectedConditions.length > 0 && (
+                <div className="text-[10px] text-slate-600 dark:text-slate-400 mt-1">
+                  ✓ {selectedConditions.length} condition(s) selected - will merge investigations, follow-ups & meds
+                </div>
+              )}
             </div>
 
             {/* Investigations with Quick Select */}
