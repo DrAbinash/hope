@@ -36,12 +36,12 @@ async function fetchQueue(status?: string, priority?: string) {
 export default function PrescriptionQueuePage() {
   const qc = useQueryClient();
   const [filterStatus, setFilterStatus] = useState("pending");
-  const [filterPriority, setFilterPriority] = useState("");
+  const [filterPriority, setFilterPriority] = useState("all");
   const [search, setSearch] = useState("");
 
   const { data: queue = [], isLoading, refetch } = useQuery({
     queryKey: ["prescription-queue", filterStatus, filterPriority],
-    queryFn: () => fetchQueue(filterStatus || undefined, filterPriority || undefined),
+    queryFn: () => fetchQueue(filterStatus || undefined, filterPriority !== "all" ? filterPriority : undefined),
     refetchInterval: 30000,
   });
   const safeQueue = Array.isArray(queue) ? queue : [];
@@ -92,14 +92,14 @@ export default function PrescriptionQueuePage() {
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="w-36"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All</SelectItem>
+            <SelectItem value="all">All</SelectItem>
             {["pending", "dispensing", "partial", "completed", "cancelled"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterPriority} onValueChange={setFilterPriority}>
           <SelectTrigger className="w-32"><SelectValue placeholder="Priority" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All</SelectItem>
+            <SelectItem value="all">All</SelectItem>
             {Object.entries(PRIORITY_META).map(([v, m]) => <SelectItem key={v} value={v}>{m.label}</SelectItem>)}
           </SelectContent>
         </Select>

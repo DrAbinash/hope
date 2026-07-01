@@ -35,11 +35,11 @@ async function fetchMedicines() {
 
 export default function ExpiryLossPage() {
   const qc = useQueryClient();
-  const [filterStatus, setFilterStatus] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ medicineId: "", medicineName: "", batchNo: "", expiryDate: "", quantity: "", disposalReason: "expired", disposalMethod: "incineration", notes: "" });
 
-  const { data: losses = [], isLoading } = useQuery({ queryKey: ["expiry-losses", filterStatus], queryFn: () => fetchLosses(filterStatus || undefined) });
+  const { data: losses = [], isLoading } = useQuery({ queryKey: ["expiry-losses", filterStatus], queryFn: () => fetchLosses(filterStatus !== "all" ? filterStatus : undefined) });
   const { data: medicines = [] } = useQuery({ queryKey: ["medicines-list"], queryFn: fetchMedicines });
   const safeLosses = Array.isArray(losses) ? losses : [];
   const safeMedicines = Array.isArray(medicines) ? medicines : [];
@@ -87,7 +87,7 @@ export default function ExpiryLossPage() {
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="w-40"><SelectValue placeholder="All statuses" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All</SelectItem>
+            <SelectItem value="all">All</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="approved">Approved</SelectItem>
             <SelectItem value="disposed">Disposed</SelectItem>

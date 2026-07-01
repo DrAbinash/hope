@@ -35,11 +35,11 @@ const DEPTS = ["Emergency", "ICU", "OT", "CSSD", "Nursing Station", "Physiothera
 
 export default function StaffIssuePage() {
   const qc = useQueryClient();
-  const [filterStatus, setFilterStatus] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ recipientName: "", recipientType: "staff", department: "", purpose: "", notes: "", items: [{ medicineId: "", medicineName: "", quantity: 1, rate: "", amount: "0" }] });
 
-  const { data: issues = [], isLoading } = useQuery({ queryKey: ["staff-issues", filterStatus], queryFn: () => fetchIssues(filterStatus || undefined) });
+  const { data: issues = [], isLoading } = useQuery({ queryKey: ["staff-issues", filterStatus], queryFn: () => fetchIssues(filterStatus !== "all" ? filterStatus : undefined) });
   const { data: medicines = [] } = useQuery({ queryKey: ["medicines-list"], queryFn: fetchMedicines });
   const safeIssues = Array.isArray(issues) ? issues : [];
   const safeMedicines = Array.isArray(medicines) ? medicines : [];
@@ -84,7 +84,7 @@ export default function StaffIssuePage() {
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="w-40"><SelectValue placeholder="All statuses" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All</SelectItem>
+            <SelectItem value="all">All</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="issued">Issued</SelectItem>
           </SelectContent>

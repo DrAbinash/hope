@@ -143,11 +143,11 @@ export default function FraudMonitor() {
             <div><Label className="text-xs">To</Label><Input type="date" className="h-8 w-36" value={filters.to_date} onChange={e => setFilters(p => ({ ...p, to_date: e.target.value }))} /></div>
             <div>
               <Label className="text-xs">Show</Label>
-              <Select value={filters.reviewed} onValueChange={v => setFilters(p => ({ ...p, reviewed: v }))}>
+              <Select value={filters.reviewed} onValueChange={v => setFilters(p => ({ ...p, reviewed: v === "all" ? "false" : v }))}>
                 <SelectTrigger className="h-8 w-36"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="false">Unreviewed Only</SelectItem>
-                  <SelectItem value="">All Events</SelectItem>
+                  <SelectItem value="all">All Events</SelectItem>
                 </SelectContent>
               </Select>
             </div>

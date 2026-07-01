@@ -16,7 +16,7 @@ export default function PmjayClaimsPage() {
   const [claims, setClaims] = useState<any[]>([]);
   const [packages, setPackages] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>({});
-  const [filter, setFilter] = useState("");
+  const [filter, setFilter] = useState("all");
   const [openNew, setOpenNew] = useState(false);
   const [openPkg, setOpenPkg] = useState(false);
   const [openUpd, setOpenUpd] = useState<any>(null);
@@ -31,7 +31,7 @@ export default function PmjayClaimsPage() {
   useEffect(() => { load(); }, [filter]);
   async function load() {
     const [c, p, s] = await Promise.all([
-      (async () => { const r = await fetch(`/api/pharmacy/pmjay/claims?status=${filter}`, { credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); })(),
+      (async () => { const statusParam = filter !== "all" ? filter : ""; const r = await fetch(`/api/pharmacy/pmjay/claims?status=${statusParam}`, { credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); })(),
       (async () => { const r = await fetch("/api/pharmacy/pmjay/packages", { credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); })(),
       (async () => { const r = await fetch("/api/pharmacy/pmjay/summary", { credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); })(),
     ]);
@@ -131,7 +131,7 @@ export default function PmjayClaimsPage() {
 
       <Tabs value={filter} onValueChange={setFilter}>
         <TabsList>
-          <TabsTrigger value="">All</TabsTrigger>
+          <TabsTrigger value="all">All</TabsTrigger>
           <TabsTrigger value="draft">Draft</TabsTrigger>
           <TabsTrigger value="submitted">Submitted</TabsTrigger>
           <TabsTrigger value="approved">Approved</TabsTrigger>

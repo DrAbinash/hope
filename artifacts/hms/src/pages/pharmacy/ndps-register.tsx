@@ -28,7 +28,7 @@ export default function NdpsRegisterPage() {
   const firstOfMonth = today().slice(0, 7) + "-01";
   const [from, setFrom] = useState(firstOfMonth);
   const [to, setTo] = useState(today());
-  const [medicineId, setMedicineId] = useState("");
+  const [medicineId, setMedicineId] = useState("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
@@ -36,7 +36,7 @@ export default function NdpsRegisterPage() {
     queryKey: ["ndps-register", from, to, medicineId, search, page],
     queryFn: () => j(
       `/api/pharmacy/schedule-h-register?from=${from}&to=${to}&page=${page}&limit=50` +
-      `${medicineId ? `&medicineId=${medicineId}` : ""}` +
+      `${medicineId !== "all" ? `&medicineId=${medicineId}` : ""}` +
       `${search ? `&search=${encodeURIComponent(search)}` : ""}`
     ),
   });
@@ -106,7 +106,7 @@ export default function NdpsRegisterPage() {
               <Select value={medicineId} onValueChange={setMedicineId}>
                 <SelectTrigger className="w-48 h-8 text-sm"><SelectValue placeholder="All NDPS" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All NDPS Medicines</SelectItem>
+                  <SelectItem value="all">All NDPS Medicines</SelectItem>
                   {ndpsMeds.map((m: any) => <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>)}
                 </SelectContent>
               </Select>

@@ -28,11 +28,11 @@ async function fetchMedicines() { const r = await fetch("/api/pharmacy/medicines
 
 export default function RateHistoryPage() {
   const qc = useQueryClient();
-  const [filterStatus, setFilterStatus] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ medicineId: "", changedField: "mrp", newValue: "", changeReason: "", effectiveDate: new Date().toISOString().slice(0, 10) });
 
-  const { data: history = [], isLoading } = useQuery({ queryKey: ["rate-history", filterStatus], queryFn: () => fetchHistory(filterStatus || undefined) });
+  const { data: history = [], isLoading } = useQuery({ queryKey: ["rate-history", filterStatus], queryFn: () => fetchHistory(filterStatus !== "all" ? filterStatus : undefined) });
   const { data: medicines = [] } = useQuery({ queryKey: ["medicines-list"], queryFn: fetchMedicines });
   const safeHistory = Array.isArray(history) ? history : [];
   const safeMedicines = Array.isArray(medicines) ? medicines : [];
@@ -62,7 +62,7 @@ export default function RateHistoryPage() {
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="w-40"><SelectValue placeholder="All statuses" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All</SelectItem>
+            <SelectItem value="all">All</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="approved">Approved</SelectItem>
             <SelectItem value="rejected">Rejected</SelectItem>

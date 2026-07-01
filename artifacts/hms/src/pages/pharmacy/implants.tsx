@@ -35,7 +35,7 @@ const SITES = ["Left Knee", "Right Knee", "Left Hip", "Right Hip", "Lumbar Spine
 export default function ImplantTrackingPage() {
   const qc = useQueryClient();
   const [patientSearch, setPatientSearch] = useState("");
-  const [filterPatientId, setFilterPatientId] = useState("");
+  const [filterPatientId, setFilterPatientId] = useState("all");
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({
     medicineId: "", medicineName: "", serialNo: "", batchNo: "", expiryDate: "",
@@ -45,7 +45,7 @@ export default function ImplantTrackingPage() {
 
   const { data: implants = [], isLoading } = useQuery({
     queryKey: ["implants", filterPatientId],
-    queryFn: () => fetchImplants(filterPatientId || undefined),
+    queryFn: () => fetchImplants(filterPatientId !== "all" ? filterPatientId : undefined),
   });
   const { data: medicines = [] } = useQuery({ queryKey: ["medicines-list"], queryFn: fetchMedicines });
   const { data: patients = [] } = useQuery({
