@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Plus, Edit3, Trash2, Zap, Settings } from "lucide-react";
+import DrugInteractionChecker from "./DrugInteractionChecker";
 
 interface MedicineTemplate {
   name: string;
@@ -370,7 +371,7 @@ export default function PrescriptionTemplateBuilder({ onSelectMedicines, onSelec
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           <div className="grid grid-cols-3 gap-2 p-3 bg-red-50 dark:bg-red-950/20 rounded-lg max-h-48 overflow-y-auto">
             {DEFAULT_MEDICATIONS.map(med => (
               <button
@@ -387,6 +388,9 @@ export default function PrescriptionTemplateBuilder({ onSelectMedicines, onSelec
               </button>
             ))}
           </div>
+          {selectedMeds.length > 1 && (
+            <DrugInteractionChecker medicines={selectedMeds} />
+          )}
         </CardContent>
       </Card>
 

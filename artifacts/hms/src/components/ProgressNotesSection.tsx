@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { FileText, Plus, Edit3, Printer, Clock, User, Heart, ChevronDown, ChevronUp, Sparkles, ShieldAlert, ListTodo, Info, Zap } from "lucide-react";
 import VoiceDictationButton from "./VoiceDictationButton";
+import DrugInteractionChecker from "./DrugInteractionChecker";
 
 interface Vitals {
   temp?: string;
@@ -1697,6 +1698,12 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
                   </Badge>
                 ))}
               </div>
+
+              {form.medicines.length > 1 && (
+                <div className="mt-3">
+                  <DrugInteractionChecker medicines={form.medicines.map(m => m.name)} />
+                </div>
+              )}
             </div>
 
             {/* Condition-Based Quick Select */}
