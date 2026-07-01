@@ -87,7 +87,115 @@ export async function compressImage(
   });
 }
 
+export function detectDocumentEdges(canvas: HTMLCanvasElement): { x: number; y: number; width: number; height: number } | null {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+
+  let minX = canvas.width;
+  let maxX = 0;
+  let minY = canvas.height;
+  let maxY = 0;
+  let found = false;
+
+  for (let y = 0; y < canvas.height; y++) {
+    for (let x = 0; x < canvas.width; x++) {
+      const idx = (y * canvas.width + x) * 4;
+      const brightness = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+
+      if (brightness < 200) {
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
+        found = true;
+      }
+    }
+  }
+
+  if (!found) return null;
+
+  const padding = 20;
+  return {
+    x: Math.max(0, minX - padding),
+    y: Math.max(0, minY - padding),
+    width: Math.min(canvas.width, maxX + padding * 2) - Math.max(0, minX - padding),
+    height: Math.min(canvas.height, maxY + padding * 2) - Math.max(0, minY - padding),
+  };
+}
+
+export async function autoCropImage(file: File): Promise<Blob> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0);
+
+        const edges = detectDocumentEdges(canvas);
+        if (edges) {
+          const croppedCanvas = document.createElement("canvas");
+          croppedCanvas.width = edges.width;
+          croppedCanvas.height = edges.height;
+          const croppedCtx = croppedCanvas.getContext("2d")!;
+          croppedCtx.drawImage(canvas, edges.x, edges.y, edges.width, edges.height, 0, 0, edges.width, edges.height);
+
+          croppedCanvas.toBlob((blob) => {
+            resolve(blob || file);
+          }, file.type, 0.8);
+        } else {
+          resolve(file);
+        }
+      };
+    };
+  });
+}
+
 export function deskewImage(canvas: HTMLCanvasElement): HTMLCanvasElement {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return canvas;
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+
+  let minAngle = -45;
+  let maxAngle = 45;
+  let bestAngle = 0;
+  let bestScore = Infinity;
+
+  for (let angle = minAngle; angle <= maxAngle; angle += 0.5) {
+    let score = 0;
+    const radians = (angle * Math.PI) / 180;
+    const cos = Math.cos(radians);
+    const sin = Math.sin(radians);
+
+    for (let y = 0; y < canvas.height; y++) {
+      let blackPixels = 0;
+      for (let x = 0; x < canvas.width; x++) {
+        const idx = (y * canvas.width + x) * 4;
+        const brightness = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+        if (brightness < 128) blackPixels++;
+      }
+      if (blackPixels > 0) score += blackPixels;
+    }
+
+    if (score < bestScore) {
+      bestScore = score;
+      bestAngle = angle;
+    }
+  }
+
+  if (Math.abs(bestAngle) > 0.5) {
+    return rotateImage(canvas, bestAngle);
+  }
   return canvas;
 }
 

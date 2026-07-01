@@ -362,15 +362,29 @@ export default function BillingDeskPage() {
 
                   {/* Document uploads */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                    <DocumentUpload category="ID Card / Aadhar" onDocumentsChange={(docs) => {
-                      setNewPatient({ ...newPatient, idCardUrl: docs.map((d) => d.url).join(",") });
-                    }} />
-                    <DocumentUpload category="Photo" onDocumentsChange={(docs) => {
-                      setNewPatient({ ...newPatient, photoUrl: docs.map((d) => d.url).join(",") });
-                    }} />
-                    <DocumentUpload category="Reports" onDocumentsChange={(docs) => {
-                      setNewPatient({ ...newPatient, reportsUrl: docs.map((d) => d.url).join(",") });
-                    }} />
+                    <DocumentUpload
+                      category="ID Card / Aadhar"
+                      allowWebcam={true}
+                      allowMobileQR={false}
+                      onDocumentsChange={(docs) => {
+                        setNewPatient({ ...newPatient, idCardUrl: docs.map((d) => d.url).join(",") });
+                      }}
+                    />
+                    <DocumentUpload
+                      category="Photo"
+                      allowWebcam={true}
+                      allowMobileQR={false}
+                      onDocumentsChange={(docs) => {
+                        setNewPatient({ ...newPatient, photoUrl: docs.map((d) => d.url).join(",") });
+                      }}
+                    />
+                    <DocumentUpload
+                      category="Reports"
+                      allowWebcam={false}
+                      onDocumentsChange={(docs) => {
+                        setNewPatient({ ...newPatient, reportsUrl: docs.map((d) => d.url).join(",") });
+                      }}
+                    />
                   </div>
                 </div>
 
