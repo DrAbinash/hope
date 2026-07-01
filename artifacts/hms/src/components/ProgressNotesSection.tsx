@@ -14,6 +14,7 @@ import { FileText, Plus, Edit3, Printer, Clock, User, Heart, ChevronDown, Chevro
 import VoiceDictationButton from "./VoiceDictationButton";
 import DrugInteractionChecker from "./DrugInteractionChecker";
 import SmartDiagnosisSuggestions from "./SmartDiagnosisSuggestions";
+import VitalTrendsDashboard from "./VitalTrendsDashboard";
 
 interface Vitals {
   temp?: string;
@@ -1555,6 +1556,14 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
                 </div>
               </div>
             </div>
+
+            {/* Vital Trends Dashboard */}
+            {(form.vitals.temp || form.vitals.pulse || form.vitals.bp || form.vitals.rr || form.vitals.spo2) && (
+              <VitalTrendsDashboard
+                currentVitals={form.vitals}
+                previousVitals={editingNote ? { temp: editingNote.vitalsSummary?.temp, pulse: editingNote.vitalsSummary?.pulse, bp: editingNote.vitalsSummary?.bp, rr: editingNote.vitalsSummary?.rr, spo2: editingNote.vitalsSummary?.spo2 } : undefined}
+              />
+            )}
 
             {/* Systemic Examination with Checkboxes */}
             <div className="border p-3 rounded-xl space-y-3">
