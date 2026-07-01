@@ -23,37 +23,46 @@ const loginLimiter = rateLimit({
 
 router.post("/auth/login", loginLimiter, async (req, res) => {
   try {
-    const { username, pin } = req.body;
+    const { username, password } = req.body;
     if (!username) {
       res.status(400).json({ error: "Username required" });
       return;
     }
 
     const [user] = await db.select().from(employeesTable).where(eq(employeesTable.username, username));
-    if (!user || !user.isActive) {
+    if (!user) {
       // Constant-time delay even on not-found to prevent user enumeration
       await new Promise((r) => setTimeout(r, 300));
+      req.log.debug({ username }, "[auth] User not found");
+      res.status(401).json({ error: "Invalid credentials" });
+      return;
+    }
+
+    if (!user.isActive) {
+      req.log.debug({ username, userId: user.id }, "[auth] Inactive user attempted login");
       res.status(401).json({ error: "Invalid credentials" });
       return;
     }
 
     // PIN verification.
-    // If the account has a pinHash set, the provided PIN must match.
+    // If the account has a pinHash set, the provided PIN (password field) must match.
     // If pinHash is null (account not yet secured), login is allowed but a
     // warning is emitted. Admins should set PINs for all accounts via the
     // Employee settings page.
     if (user.pinHash) {
-      if (!pin) {
+      if (!password) {
+        req.log.debug({ username, userId: user.id }, "[auth] PIN missing");
         res.status(401).json({ error: "PIN required" });
         return;
       }
-      const pinOk = await bcrypt.compare(String(pin), user.pinHash);
+      const pinOk = await bcrypt.compare(String(password), user.pinHash);
       if (!pinOk) {
+        req.log.debug({ username, userId: user.id }, "[auth] Invalid PIN");
         res.status(401).json({ error: "Invalid credentials" });
         return;
       }
     } else {
-      req.log.warn({ userId: user.id, username: user.username }, "Login without PIN — account has no PIN set");
+      req.log.warn({ userId: user.id, username: user.username }, "[auth] Login without PIN — account has no PIN set");
     }
 
     req.session.userId = user.id;

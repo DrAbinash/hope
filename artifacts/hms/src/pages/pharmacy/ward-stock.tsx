@@ -12,10 +12,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Plus, ArrowRightLeft, MapPin, Package } from "lucide-react";
 
-const fetchLocations = async () => { const r = await fetch("/api/pharmacy/locations"); if (!r.ok) throw new Error("Failed"); return r.json(); };
-const fetchLocationStock = async (locationId: string) => { const r = await fetch(`/api/pharmacy/location-stock?locationId=${locationId}`); if (!r.ok) throw new Error("Failed"); return r.json(); };
-const fetchTransfers = async () => { const r = await fetch("/api/pharmacy/location-transfers"); if (!r.ok) throw new Error("Failed"); return r.json(); };
-const fetchMedicines = async () => { const r = await fetch("/api/pharmacy/medicines?limit=500"); if (!r.ok) throw new Error("Failed"); return r.json(); };
+const fetchLocations = async () => { const r = await fetch("/api/pharmacy/locations", { credentials: "include" }); if (!r.ok) throw new Error("Failed"); const data = await r.json(); return Array.isArray(data) ? data : []; };
+const fetchLocationStock = async (locationId: string) => { const r = await fetch(`/api/pharmacy/location-stock?locationId=${locationId}`, { credentials: "include" }); if (!r.ok) throw new Error("Failed"); const data = await r.json(); return Array.isArray(data) ? data : []; };
+const fetchTransfers = async () => { const r = await fetch("/api/pharmacy/location-transfers", { credentials: "include" }); if (!r.ok) throw new Error("Failed"); const data = await r.json(); return Array.isArray(data) ? data : []; };
+const fetchMedicines = async () => { const r = await fetch("/api/pharmacy/medicines?limit=500", { credentials: "include" }); if (!r.ok) throw new Error("Failed"); const data = await r.json(); return Array.isArray(data) ? data : []; };
 
 const LOCATION_TYPE_LABELS: Record<string, string> = { ward: "Ward", icu: "ICU", ot: "OT", emergency: "Emergency", store: "Store" };
 const LOCATION_TYPE_COLORS: Record<string, string> = { ward: "bg-blue-100 text-blue-700", icu: "bg-red-100 text-red-700", ot: "bg-purple-100 text-purple-700", emergency: "bg-orange-100 text-orange-700", store: "bg-gray-100 text-gray-700" };
@@ -35,14 +35,19 @@ export default function WardStockPage() {
   const { data: transfers = [] } = useQuery({ queryKey: ["location-transfers"], queryFn: fetchTransfers });
   const { data: medicines = [] } = useQuery({ queryKey: ["medicines-list"], queryFn: fetchMedicines });
 
+  const safeLocations = Array.isArray(locations) ? locations : [];
+  const safeStock = Array.isArray(stock) ? stock : [];
+  const safeTransfers = Array.isArray(transfers) ? transfers : [];
+  const safeMedicines = Array.isArray(medicines) ? medicines : [];
+
   const addLoc = useMutation({
-    mutationFn: async (d: any) => { const r = await fetch("/api/pharmacy/locations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) }); if (!r.ok) throw new Error(await r.text()); return r.json(); },
+    mutationFn: async (d: any) => { const r = await fetch("/api/pharmacy/locations", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(d) }); if (!r.ok) throw new Error(await r.text()); return r.json(); },
     onSuccess: () => { toast.success("Location added"); qc.invalidateQueries({ queryKey: ["locations"] }); setShowAddLoc(false); setLocForm({ name: "", locationType: "ward", description: "" }); },
     onError: (e: any) => toast.error(e.message),
   });
 
   const doTransfer = useMutation({
-    mutationFn: async (d: any) => { const r = await fetch("/api/pharmacy/location-transfers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) }); if (!r.ok) { const j = await r.json(); throw new Error(j.error); } return r.json(); },
+    mutationFn: async (d: any) => { const r = await fetch("/api/pharmacy/location-transfers", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(d) }); if (!r.ok) { const j = await r.json(); throw new Error(j.error); } return r.json(); },
     onSuccess: () => { toast.success("Transfer completed"); qc.invalidateQueries({ queryKey: ["location-stock", selectedLoc] }); qc.invalidateQueries({ queryKey: ["location-transfers"] }); setShowTransfer(false); setTxForm({ fromLocationId: "", toLocationId: "", medicineId: "", quantity: "", reason: "" }); },
     onError: (e: any) => toast.error(e.message),
   });
@@ -63,7 +68,7 @@ export default function WardStockPage() {
         <TabsContent value="stock" className="space-y-4 mt-4">
           {/* Location selector */}
           <div className="flex flex-wrap gap-2">
-            {(locations as any[]).map((loc: any) => (
+            {safeLocations.map((loc: any) => (
               <button key={loc.id} onClick={() => setSelectedLoc(String(loc.id))}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm transition-colors ${selectedLoc === String(loc.id) ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted"}`}>
                 <MapPin className="w-3.5 h-3.5" />
@@ -71,19 +76,19 @@ export default function WardStockPage() {
                 <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${LOCATION_TYPE_COLORS[loc.locationType] ?? ""}`}>{LOCATION_TYPE_LABELS[loc.locationType] ?? loc.locationType}</span>
               </button>
             ))}
-            {locations.length === 0 && <p className="text-sm text-muted-foreground">No locations yet. Add one to get started.</p>}
+            {safeLocations.length === 0 && <p className="text-sm text-muted-foreground">No locations yet. Add one to get started.</p>}
           </div>
 
           {selectedLoc && (
             <Card>
               <CardContent className="p-0">
-                {stockLoading ? <div className="p-8 text-center text-muted-foreground">Loading…</div> : stock.length === 0 ? (
+                {stockLoading ? <div className="p-8 text-center text-muted-foreground">Loading…</div> : safeStock.length === 0 ? (
                   <div className="p-8 text-center text-muted-foreground"><Package className="w-8 h-8 mx-auto mb-2 opacity-40" /><p>No stock at this location yet.<br />Transfer medicines here using the Transfer Stock button.</p></div>
                 ) : (
                   <Table>
                     <TableHeader><TableRow><TableHead>Medicine</TableHead><TableHead>Generic</TableHead><TableHead>Batch</TableHead><TableHead>Expiry</TableHead><TableHead className="text-right">Qty</TableHead></TableRow></TableHeader>
                     <TableBody>
-                      {(stock as any[]).map((row: any) => (
+                      {safeStock.map((row: any) => (
                         <TableRow key={row.id}>
                           <TableCell className="font-medium">{row.medicineName}</TableCell>
                           <TableCell className="text-muted-foreground text-sm">{row.genericName || "—"}</TableCell>
@@ -106,9 +111,9 @@ export default function WardStockPage() {
               <Table>
                 <TableHeader><TableRow><TableHead>Transfer No</TableHead><TableHead>Medicine</TableHead><TableHead>From</TableHead><TableHead>To</TableHead><TableHead>Batch</TableHead><TableHead className="text-right">Qty</TableHead><TableHead>By</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
                 <TableBody>
-                  {(transfers as any[]).length === 0 ? (
+                  {safeTransfers.length === 0 ? (
                     <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No transfers yet</TableCell></TableRow>
-                  ) : (transfers as any[]).map((t: any) => (
+                  ) : safeTransfers.map((t: any) => (
                     <TableRow key={t.id}>
                       <TableCell className="font-mono text-xs">{t.transferNo}</TableCell>
                       <TableCell>{t.medicineName}</TableCell>
@@ -156,19 +161,19 @@ export default function WardStockPage() {
             <div><Label>From Location *</Label>
               <Select value={txForm.fromLocationId} onValueChange={v => setTxForm(f => ({ ...f, fromLocationId: v }))}>
                 <SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger>
-                <SelectContent>{(locations as any[]).map((l: any) => <SelectItem key={l.id} value={String(l.id)}>{l.name}</SelectItem>)}</SelectContent>
+                <SelectContent>{safeLocations.map((l: any) => <SelectItem key={l.id} value={String(l.id)}>{l.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div><Label>To Location *</Label>
               <Select value={txForm.toLocationId} onValueChange={v => setTxForm(f => ({ ...f, toLocationId: v }))}>
                 <SelectTrigger><SelectValue placeholder="Select destination" /></SelectTrigger>
-                <SelectContent>{(locations as any[]).map((l: any) => <SelectItem key={l.id} value={String(l.id)}>{l.name}</SelectItem>)}</SelectContent>
+                <SelectContent>{safeLocations.map((l: any) => <SelectItem key={l.id} value={String(l.id)}>{l.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div><Label>Medicine *</Label>
               <Select value={txForm.medicineId} onValueChange={v => setTxForm(f => ({ ...f, medicineId: v }))}>
                 <SelectTrigger><SelectValue placeholder="Select medicine" /></SelectTrigger>
-                <SelectContent className="max-h-52">{(medicines as any[]).map((m: any) => <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>)}</SelectContent>
+                <SelectContent className="max-h-52">{safeMedicines.map((m: any) => <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div><Label>Quantity *</Label><Input type="number" min={1} value={txForm.quantity} onChange={e => setTxForm(f => ({ ...f, quantity: e.target.value }))} /></div>

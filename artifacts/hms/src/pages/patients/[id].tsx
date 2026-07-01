@@ -7,6 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DocumentIntegration } from "@/components/document-integration";
+import { DocumentUpload } from "@/components/document-upload";
 import {
   User,
   Phone,
@@ -94,70 +96,101 @@ export default function PatientProfilePage() {
 
   const { data, isLoading, error } = useQuery<PatientHistoryData>({
     queryKey: [`/api/patients/${patientId}/history`],
-    queryFn: () => fetch(`/api/patients/${patientId}/history`).then((r) => {
+    queryFn: async () => {
+      const r = await fetch(`/api/patients/${patientId}/history`, { credentials: "include" });
       if (!r.ok) throw new Error("Failed to load patient history");
       return r.json();
-    }),
+    },
     enabled: !!patientId,
   });
 
   const { data: aiAlerts } = useQuery({
     queryKey: [`/api/ai/clinical-alerts`, patientId],
-    queryFn: () => fetch(`/api/ai/clinical-alerts`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ patientId })
-    }).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/ai/clinical-alerts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ patientId })
+      });
+      if (!r.ok) throw new Error("Failed to fetch clinical alerts");
+      return r.json();
+    },
     enabled: !!patientId
   });
 
   const { data: aiTimeline } = useQuery({
     queryKey: [`/api/ai/patient-timeline`, patientId],
-    queryFn: () => fetch(`/api/ai/patient-timeline`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ patientId })
-    }).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/ai/patient-timeline`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ patientId })
+      });
+      if (!r.ok) throw new Error("Failed to fetch timeline");
+      return r.json();
+    },
     enabled: !!patientId
   });
 
   const { data: aiRadiology } = useQuery({
     queryKey: [`/api/ai/radiology-summary`, patientId],
-    queryFn: () => fetch(`/api/ai/radiology-summary`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ patientId })
-    }).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/ai/radiology-summary`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ patientId })
+      });
+      if (!r.ok) throw new Error("Failed to fetch radiology summary");
+      return r.json();
+    },
     enabled: !!patientId
   });
 
   const { data: aiLaboratory } = useQuery({
     queryKey: [`/api/ai/laboratory-summary`, patientId],
-    queryFn: () => fetch(`/api/ai/laboratory-summary`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ patientId })
-    }).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/ai/laboratory-summary`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ patientId })
+      });
+      if (!r.ok) throw new Error("Failed to fetch laboratory summary");
+      return r.json();
+    },
     enabled: !!patientId
   });
 
   const { data: aiMedication } = useQuery({
     queryKey: [`/api/ai/medication-summary`, patientId],
-    queryFn: () => fetch(`/api/ai/medication-summary`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ patientId })
-    }).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/ai/medication-summary`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ patientId })
+      });
+      if (!r.ok) throw new Error("Failed to fetch medication summary");
+      return r.json();
+    },
     enabled: !!patientId
   });
 
   const { data: aiSummary } = useQuery({
     queryKey: [`/api/ai/patient-summary`, patientId],
-    queryFn: () => fetch(`/api/ai/patient-summary`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ patientId })
-    }).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/ai/patient-summary`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ patientId })
+      });
+      if (!r.ok) throw new Error("Failed to fetch patient summary");
+      return r.json();
+    },
     enabled: !!patientId
   });
 
@@ -221,7 +254,7 @@ export default function PatientProfilePage() {
       </div>
 
       {/* AI Doctor Preparation Panel */}
-      {aiAlerts?.doctorPreparation && aiAlerts.doctorPreparation.length > 0 && (
+      {Array.isArray(aiAlerts?.doctorPreparation) && aiAlerts.doctorPreparation.length > 0 && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 space-y-2">
           <h3 className="font-semibold text-indigo-950 flex items-center gap-2 text-sm">
             <Sparkles className="h-4.5 w-4.5 text-indigo-600 animate-pulse" />
@@ -305,11 +338,12 @@ export default function PatientProfilePage() {
         {/* Right Column: Tabbed Visit Histories */}
         <div className="md:col-span-2">
           <Tabs defaultValue="ai-memory" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 bg-muted rounded-xl">
+            <TabsList className="grid w-full grid-cols-5 bg-muted rounded-xl">
               <TabsTrigger value="ai-memory" className="rounded-lg">🧠 AI Memory Layer</TabsTrigger>
               <TabsTrigger value="opd" className="rounded-lg">OPD Visits ({opdVisits.length})</TabsTrigger>
               <TabsTrigger value="ipd" className="rounded-lg">IPD Admissions ({ipdAdmissions.length})</TabsTrigger>
               <TabsTrigger value="billing" className="rounded-lg">Billing ({invoices.length})</TabsTrigger>
+              <TabsTrigger value="documents" className="rounded-lg">📄 Documents</TabsTrigger>
             </TabsList>
 
             {/* AI Memory Layer Content */}
@@ -777,6 +811,42 @@ export default function PatientProfilePage() {
                   </CardContent>
                 </Card>
               )}
+            </TabsContent>
+
+            {/* Patient Documents */}
+            <TabsContent value="documents" className="mt-4 space-y-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    Upload Patient Documents
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="bg-cyan-50 dark:bg-cyan-950/20 p-3 rounded-lg border border-cyan-200">
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Upload identity proofs, insurance documents, medical history, reports, or any other relevant patient documents.
+                    </p>
+                    <DocumentUpload
+                      category="Patient Document"
+                      patientId={patientId || 0}
+                      module="Registration"
+                      department="Patient Records"
+                      description="Patient identity, insurance, or medical document"
+                      tags={["patient-document", "registration"]}
+                      multiple={true}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <DocumentIntegration
+                patientId={patientId || 0}
+                module="Registration"
+                title="All Patient Documents"
+                showUpload={false}
+                maxDocuments={30}
+              />
             </TabsContent>
           </Tabs>
         </div>

@@ -17,7 +17,7 @@ export default function ConsultantsList() {
       return r.json() as Promise<{ consultants: any[] }>;
     },
   });
-  const rows = (data?.consultants || []).filter((d) =>
+  const rows = (Array.isArray(data?.consultants) ? data.consultants : []).filter((d) =>
     !search || d.name?.toLowerCase().includes(search.toLowerCase()) || d.phone?.includes(search) || d.specialization?.toLowerCase().includes(search.toLowerCase())
   );
 

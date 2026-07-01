@@ -10,11 +10,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, LogOut, BedDouble, User, Stethoscope } from "lucide-react";
+import { ArrowLeft, LogOut, BedDouble, User, Stethoscope, FileText } from "lucide-react";
 import { Link } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProgressNotesSection from "@/components/ProgressNotesSection";
 import NursingHandoverSection from "@/components/NursingHandoverSection";
+import { DocumentIntegration } from "@/components/document-integration";
+import { DocumentUpload } from "@/components/document-upload";
 
 export default function IPDDetail() {
   const [, params] = useRoute("/ipd/:id");
@@ -33,6 +35,7 @@ export default function IPDDetail() {
       const res = await fetch(`/api/ipd/${id}/discharge`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(form),
       });
       if (!res.ok) throw new Error(await res.text());
@@ -118,6 +121,7 @@ export default function IPDDetail() {
           <TabsTrigger value="details" className="rounded-lg">Admission Details</TabsTrigger>
           <TabsTrigger value="progress" className="rounded-lg">Daily Progress Notes</TabsTrigger>
           <TabsTrigger value="handover" className="rounded-lg">Nursing Handovers</TabsTrigger>
+          <TabsTrigger value="documents" className="rounded-lg">Documents</TabsTrigger>
         </TabsList>
 
         <TabsContent value="details" className="mt-4">
@@ -159,6 +163,41 @@ export default function IPDDetail() {
             patientUhid={(admission as any).patientUhid || "UHID" + admission.patientId}
             bedNo={(admission as any).bedNo}
             wardName={(admission as any).wardName}
+          />
+        </TabsContent>
+
+        <TabsContent value="documents" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Upload Admission & Discharge Documents
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="bg-purple-50 dark:bg-purple-950/20 p-3 rounded-lg border border-purple-200">
+                <p className="text-xs text-muted-foreground mb-3">
+                  Upload admission documents, clinical notes, investigation reports, discharge summaries, and other relevant medical records.
+                </p>
+                <DocumentUpload
+                  category="IPD Document"
+                  patientId={admission.patientId}
+                  module="IPD"
+                  department="Inpatient"
+                  description="IPD admission or discharge document"
+                  tags={["ipd", `admission-${(admission as any).ipdNo}`]}
+                  multiple={true}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <DocumentIntegration
+            patientId={admission.patientId}
+            module="IPD"
+            title="IPD Documents"
+            showUpload={false}
+            maxDocuments={20}
           />
         </TabsContent>
       </Tabs>

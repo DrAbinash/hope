@@ -23,7 +23,7 @@ export default function ReferralReport() {
     },
   });
 
-  const rows = data?.rows || [];
+  const rows = Array.isArray(data?.rows) ? data.rows : [];
   const totals = rows.reduce((acc, r: any) => {
     acc.cases += Number(r.cases) || 0;
     acc.totalServices += Number(r.totalServices) || 0;

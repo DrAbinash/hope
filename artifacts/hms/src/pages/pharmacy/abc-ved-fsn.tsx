@@ -15,16 +15,20 @@ const FSN_COLORS: Record<string, string> = { F: "bg-green-600 text-white", S: "b
 export default function AbcVedFsnPage() {
   const [list, setList] = useState<any[]>([]);
   const [summary, setSummary] = useState<any[]>([]);
-  const [abc, setAbc] = useState("");
-  const [ved, setVed] = useState("");
-  const [fsn, setFsn] = useState("");
+  const [abc, setAbc] = useState("all");
+  const [ved, setVed] = useState("all");
+  const [fsn, setFsn] = useState("all");
   const [running, setRunning] = useState(false);
 
   useEffect(() => { load(); }, [abc, ved, fsn]);
   async function load() {
+    const params = new URLSearchParams();
+    if (abc !== "all") params.set("abc", abc);
+    if (ved !== "all") params.set("ved", ved);
+    if (fsn !== "all") params.set("fsn", fsn);
     const [l, s] = await Promise.all([
-      fetch(`/api/pharmacy/abc-ved-fsn?abc=${abc}&ved=${ved}&fsn=${fsn}`, { credentials: "include" }).then(r => r.json()),
-      fetch("/api/pharmacy/abc-ved-fsn/summary", { credentials: "include" }).then(r => r.json()),
+      (async () => { const r = await fetch(`/api/pharmacy/abc-ved-fsn?${params}`, { credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); })(),
+      (async () => { const r = await fetch("/api/pharmacy/abc-ved-fsn/summary", { credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); })(),
     ]);
     setList(Array.isArray(l) ? l : []);
     setSummary(Array.isArray(s) ? s : []);
@@ -77,13 +81,13 @@ export default function AbcVedFsnPage() {
         <TabsContent value="list">
           <div className="flex gap-2 mb-3">
             <Select value={abc} onValueChange={setAbc}><SelectTrigger className="w-32"><SelectValue placeholder="ABC" /></SelectTrigger>
-              <SelectContent><SelectItem value="">All ABC</SelectItem><SelectItem value="A">A</SelectItem><SelectItem value="B">B</SelectItem><SelectItem value="C">C</SelectItem></SelectContent>
+              <SelectContent><SelectItem value="all">All ABC</SelectItem><SelectItem value="A">A</SelectItem><SelectItem value="B">B</SelectItem><SelectItem value="C">C</SelectItem></SelectContent>
             </Select>
             <Select value={ved} onValueChange={setVed}><SelectTrigger className="w-32"><SelectValue placeholder="VED" /></SelectTrigger>
-              <SelectContent><SelectItem value="">All VED</SelectItem><SelectItem value="V">V — Vital</SelectItem><SelectItem value="E">E — Essential</SelectItem><SelectItem value="D">D — Desirable</SelectItem></SelectContent>
+              <SelectContent><SelectItem value="all">All VED</SelectItem><SelectItem value="V">V — Vital</SelectItem><SelectItem value="E">E — Essential</SelectItem><SelectItem value="D">D — Desirable</SelectItem></SelectContent>
             </Select>
             <Select value={fsn} onValueChange={setFsn}><SelectTrigger className="w-32"><SelectValue placeholder="FSN" /></SelectTrigger>
-              <SelectContent><SelectItem value="">All FSN</SelectItem><SelectItem value="F">F — Fast</SelectItem><SelectItem value="S">S — Slow</SelectItem><SelectItem value="N">N — Non-moving</SelectItem></SelectContent>
+              <SelectContent><SelectItem value="all">All FSN</SelectItem><SelectItem value="F">F — Fast</SelectItem><SelectItem value="S">S — Slow</SelectItem><SelectItem value="N">N — Non-moving</SelectItem></SelectContent>
             </Select>
           </div>
           <Card><CardContent className="p-0">

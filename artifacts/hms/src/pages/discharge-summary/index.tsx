@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,8 @@ import { useAuth } from "@/lib/auth";
 import {
   ClipboardList, Plus, Printer, Trash2, FileCheck2, FileText, Lock, Sparkles, ShieldAlert, ListTodo, Info, Clock,
 } from "lucide-react";
+import { DocumentIntegration } from "@/components/document-integration";
+import { DocumentUpload } from "@/components/document-upload";
 
 interface Med { name: string; dose: string; frequency: string; duration: string; instructions?: string }
 interface Investigation { name: string; result: string; date?: string }
@@ -85,30 +87,65 @@ export default function DischargeSummaryPage() {
 
   const { data: rows } = useQuery<SummaryRow[]>({
     queryKey: ["/api/discharge-summaries"],
-    queryFn: () => fetch("/api/discharge-summaries").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/discharge-summaries", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch summaries");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
   const { data: admissions } = useQuery<IpdAdm[]>({
     queryKey: ["/api/ipd"],
-    queryFn: () => fetch("/api/ipd").then((r) => r.json()).then((d) => Array.isArray(d) ? d : (d.admissions || [])),
+    queryFn: async () => {
+      const r = await fetch("/api/ipd", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch admissions");
+      const data = await r.json();
+      return Array.isArray(data) ? data : (data.admissions || []);
+    },
   });
   const { data: doctors } = useQuery<Doctor[]>({
     queryKey: ["/api/doctors"],
-    queryFn: () => fetch("/api/doctors").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/doctors", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch doctors");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
   const { data: entities } = useQuery<Entity[]>({
     queryKey: ["/api/entities"],
-    queryFn: () => fetch("/api/entities").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/entities", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch entities");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
   const { data: settings } = useQuery<HospitalSetting[]>({
     queryKey: ["/api/hospital-settings"],
-    queryFn: () => fetch("/api/hospital-settings").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/hospital-settings", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch settings");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
   const { data: activeSummary } = useQuery<Summary>({
     queryKey: ["/api/discharge-summaries", activeId],
-    queryFn: () => fetch(`/api/discharge-summaries/${activeId}`).then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/discharge-summaries/${activeId}`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch summary");
+      return r.json();
+    },
     enabled: !!activeId,
   });
+
+  const safeDoctors = Array.isArray(doctors) ? doctors : [];
+  const safeEntities = Array.isArray(entities) ? entities : [];
+  const safeSettings = Array.isArray(settings) ? settings : [];
+  const safeAdmissions = Array.isArray(admissions) ? admissions : [];
+  const safeRows = Array.isArray(rows) ? rows : [];
 
   // AI draft assistant states
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -125,7 +162,7 @@ export default function DischargeSummaryPage() {
     if (!activeSummary || !activeSummary.ipdAdmissionId) return;
     setIsAiLoading(true);
     try {
-      const res = await fetch(`/api/ipd/${activeSummary.ipdAdmissionId}/ai-draft?type=discharge`);
+      const res = await fetch(`/api/ipd/${activeSummary.ipdAdmissionId}/ai-draft?type=discharge`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to compile AI draft");
       const data = await res.json();
 
@@ -171,16 +208,18 @@ export default function DischargeSummaryPage() {
     }
   };
 
-  const summariesByIpd = new Set((rows || []).map((r) => r.ipdAdmissionId).filter(Boolean));
-  const eligibleAdmissions = (admissions || []).filter((a) => !summariesByIpd.has(a.id));
+  const summariesByIpd = new Set(safeRows.map((r) => r.ipdAdmissionId).filter(Boolean));
+  const eligibleAdmissions = safeAdmissions.filter((a) => !summariesByIpd.has(a.id));
 
   const create = useMutation({
     mutationFn: async () => {
       if (!pickedIpdId) throw new Error("Pick an admission");
-      const pre = await fetch(`/api/discharge-summaries/prefill/${pickedIpdId}`).then((r) => r.json());
+      const pr = await fetch(`/api/discharge-summaries/prefill/${pickedIpdId}`, { credentials: "include" });
+      if (!pr.ok) throw new Error("Failed to prefill summary");
+      const pre = await pr.json();
       const adm = (admissions || []).find((a) => a.id === Number(pickedIpdId));
       const r = await fetch("/api/discharge-summaries", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
         body: JSON.stringify({
           ipdAdmissionId: Number(pickedIpdId),
           patientId: pre.patientId,
@@ -213,7 +252,7 @@ export default function DischargeSummaryPage() {
     mutationFn: async (body: Partial<Summary>) => {
       if (!activeId) throw new Error("No summary");
       const r = await fetch(`/api/discharge-summaries/${activeId}`, {
-        method: "PUT", headers: { "Content-Type": "application/json" },
+        method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include",
         body: JSON.stringify(body),
       });
       if (!r.ok) throw new Error("Failed");
@@ -269,7 +308,7 @@ export default function DischargeSummaryPage() {
   const [newMed, setNewMed] = useState({ name: "", dose: "", frequency: "", duration: "", instructions: "" });
 
   const printSummary = (s: Summary) => {
-    const setting = (settings || []).find((x) => x.entityId === s.entityId);
+    const setting = safeSettings.find((x) => x.entityId === s.entityId);
     const w = window.open("", "_blank", "width=900,height=1000");
     if (!w) return;
     const fmt = (d: any) => d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
@@ -348,11 +387,10 @@ export default function DischargeSummaryPage() {
     w.document.close();
   };
 
-  const list = rows || [];
   const stats = {
-    total: list.length,
-    draft: list.filter((r) => r.status === "draft").length,
-    finalized: list.filter((r) => r.status === "finalized").length,
+    total: safeRows.length,
+    draft: safeRows.filter((r) => r.status === "draft").length,
+    finalized: safeRows.filter((r) => r.status === "finalized").length,
     eligible: eligibleAdmissions.length,
   };
 
@@ -393,9 +431,9 @@ export default function DischargeSummaryPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {list.length === 0 ? (
+              {safeRows.length === 0 ? (
                 <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-12">No discharge summaries yet. Click "New from IPD" to generate one from an admission.</TableCell></TableRow>
-              ) : list.map((r) => (
+              ) : safeRows.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell className="font-mono text-xs">{r.summaryNo}</TableCell>
                   <TableCell>
@@ -416,6 +454,39 @@ export default function DischargeSummaryPage() {
               ))}
             </TableBody>
           </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            Discharge Summary Documents
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="bg-indigo-50 dark:bg-indigo-950/20 p-3 rounded-lg border border-indigo-200">
+            <p className="text-xs text-muted-foreground mb-3">
+              Upload discharge certificates, prescriptions, follow-up instructions, and related discharge documents.
+            </p>
+            <DocumentUpload
+              category="Discharge Summary"
+              patientId={0}
+              module="IPD"
+              department="Discharge"
+              description="Discharge certificate or summary document"
+              tags={["discharge", "discharge-summary"]}
+              multiple={true}
+            />
+          </div>
+
+          <DocumentIntegration
+            patientId={0}
+            module="IPD"
+            title="Discharge Documents"
+            showUpload={false}
+            maxDocuments={25}
+          />
         </CardContent>
       </Card>
 
@@ -563,14 +634,14 @@ export default function DischargeSummaryPage() {
                   <span className="text-xs text-muted-foreground">Attending Doctor</span><br/>
                   <Select value={String(activeSummary.attendingDoctorId || "")} onValueChange={(v) => { updateField("attendingDoctorId" as any, Number(v)); save.mutate({ attendingDoctorId: Number(v) } as any); }} disabled={isLocked}>
                     <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                    <SelectContent>{(doctors || []).map((d) => <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>)}</SelectContent>
+                    <SelectContent>{safeDoctors.map((d) => <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div>
                   <span className="text-xs text-muted-foreground">Entity</span><br/>
                   <Select value={String(activeSummary.entityId || "")} onValueChange={(v) => { updateField("entityId" as any, Number(v)); save.mutate({ entityId: Number(v) } as any); }} disabled={isLocked}>
                     <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                    <SelectContent>{(entities || []).map((e) => <SelectItem key={e.id} value={String(e.id)}>{e.name}</SelectItem>)}</SelectContent>
+                    <SelectContent>{safeEntities.map((e) => <SelectItem key={e.id} value={String(e.id)}>{e.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div>

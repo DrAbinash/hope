@@ -65,9 +65,9 @@ export default function ExpiryManagementPage() {
 
   if (isLoading) return <Skeleton className="h-80 m-4" />;
 
-  const expired = data?.expired?.items || [];
-  const expiring30 = data?.expiring30?.items || [];
-  const expiring90 = data?.expiring90?.items || [];
+  const expired = Array.isArray(data?.expired?.items) ? data.expired.items : [];
+  const expiring30 = Array.isArray(data?.expiring30?.items) ? data.expiring30.items : [];
+  const expiring90 = Array.isArray(data?.expiring90?.items) ? data.expiring90.items : [];
 
   return (
     <div className="space-y-6">

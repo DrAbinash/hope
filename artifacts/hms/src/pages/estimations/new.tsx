@@ -49,12 +49,16 @@ export default function NewEstimation() {
   const { data: patientsData } = useListPatients({});
   const { data: doctors } = useListDoctors();
 
+  const safePatients = Array.isArray(patientsData?.patients) ? patientsData.patients : [];
+  const safeDoctors = Array.isArray(doctors) ? doctors : [];
+
   const { data: billingHeads } = useQuery({
     queryKey: ["/api/billing-heads"],
     queryFn: async () => {
       const r = await fetch("/api/billing-heads", { credentials: "include" });
       if (!r.ok) return [];
-      return r.json();
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
     },
   });
   const { data: packages } = useQuery({
@@ -62,15 +66,19 @@ export default function NewEstimation() {
     queryFn: async () => {
       const r = await fetch("/api/packages", { credentials: "include" });
       if (!r.ok) return [];
-      return r.json();
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
     },
   });
+
+  const safePackages = Array.isArray(packages) ? packages : [];
+  const safeBillingHeads = Array.isArray(billingHeads) ? billingHeads : [];
 
   // Adopt selected package — append its line items
   function adoptPackage(pkgIdStr: string) {
     setPackageId(pkgIdStr);
     if (!pkgIdStr) return;
-    const pkg = (packages as any[] | undefined)?.find((p) => String(p.id) === pkgIdStr);
+    const pkg = safePackages.find((p) => String(p.id) === pkgIdStr);
     if (!pkg) return;
     const newItems: Item[] = (pkg.items || []).map((it: any) => ({
       description: it.headName,
@@ -86,7 +94,7 @@ export default function NewEstimation() {
   }
 
   function adoptBillingHead(idx: number, headIdStr: string) {
-    const head = (billingHeads as any[] | undefined)?.find((h) => String(h.id) === headIdStr);
+    const head = safeBillingHeads.find((h) => String(h.id) === headIdStr);
     if (!head) return;
     setItems((rows) => rows.map((r, i) => i === idx ? {
       ...r,
@@ -189,7 +197,7 @@ export default function NewEstimation() {
             <Select value={patientId} onValueChange={setPatientId}>
               <SelectTrigger data-testid="patient-select"><SelectValue placeholder="Select patient" /></SelectTrigger>
               <SelectContent>
-                {patientsData?.patients.map((p) => (
+                {safePatients.map((p) => (
                   <SelectItem key={p.id} value={String(p.id)}>{p.name} ({p.uhid})</SelectItem>
                 ))}
               </SelectContent>
@@ -202,7 +210,7 @@ export default function NewEstimation() {
               <Select value={surgeonId} onValueChange={setSurgeonId}>
                 <SelectTrigger><SelectValue placeholder="Select doctor" /></SelectTrigger>
                 <SelectContent>
-                  {doctors?.map((d: any) => <SelectItem key={d.id} value={String(d.id)}>{d.name} — {d.specialization}</SelectItem>)}
+                  {safeDoctors.map((d: any) => <SelectItem key={d.id} value={String(d.id)}>{d.name} — {d.specialization}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -250,7 +258,7 @@ export default function NewEstimation() {
               <Select value={packageId} onValueChange={adoptPackage}>
                 <SelectTrigger data-testid="package-select"><SelectValue placeholder="Pick a package to populate items" /></SelectTrigger>
                 <SelectContent>
-                  {(packages as any[] | undefined)?.map((p: any) => (
+                  {safePackages.map((p: any) => (
                     <SelectItem key={p.id} value={String(p.id)}>{p.name} — ₹{Number(p.packageRate).toLocaleString()}</SelectItem>
                   ))}
                 </SelectContent>
@@ -297,7 +305,7 @@ export default function NewEstimation() {
                     <Select value={it.billingHeadId ? String(it.billingHeadId) : ""} onValueChange={(v) => adoptBillingHead(i, v)}>
                       <SelectTrigger><SelectValue placeholder="Pick a billing head…" /></SelectTrigger>
                       <SelectContent className="max-h-72">
-                        {(billingHeads as any[] | undefined)?.map((h: any) => (
+                        {safeBillingHeads.map((h: any) => (
                           <SelectItem key={h.id} value={String(h.id)}>{h.name} (₹{Number(h.defaultRate).toLocaleString()})</SelectItem>
                         ))}
                       </SelectContent>

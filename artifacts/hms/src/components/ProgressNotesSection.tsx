@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
-import { FileText, Plus, Edit3, Printer, Clock, User, Heart, ChevronDown, ChevronUp, Sparkles, ShieldAlert, ListTodo, Info } from "lucide-react";
+import { FileText, Plus, Edit3, Printer, Clock, User, Heart, ChevronDown, ChevronUp, Sparkles, ShieldAlert, ListTodo, Info, Zap } from "lucide-react";
 
 interface Vitals {
   temp?: string;
@@ -25,6 +26,235 @@ interface SystemicExam {
   rs?: string;
   pa?: string;
 }
+
+// Quick select templates for common clinical findings
+const COMPLAINT_TEMPLATES = [
+  "No active complaints",
+  "Stable, resting",
+  "Mild discomfort",
+  "Pain in affected area",
+  "Fever",
+  "Shortness of breath",
+  "Nausea/Vomiting",
+  "Dizziness",
+];
+
+const VITAL_TEMPLATES = {
+  normal: { temp: "98.6", pulse: "72-80", bp: "120/80", rr: "16-20", spo2: "98-100" },
+  fever: { temp: "101.2", pulse: "88", bp: "120/80", rr: "18", spo2: "98" },
+  tachycardia: { temp: "98.6", pulse: "110", bp: "130/85", rr: "20", spo2: "97" },
+  hypotension: { temp: "98.6", pulse: "96", bp: "95/60", rr: "18", spo2: "98" },
+};
+
+const CNS_OPTIONS = [
+  "Conscious, oriented to time/place/person",
+  "Alert and responsive",
+  "Drowsy but arousable",
+  "Speech clear",
+  "Pupils reactive",
+  "Limb power normal",
+  "No focal neurological deficit",
+];
+
+const CVS_OPTIONS = [
+  "S1 S2 heard clearly",
+  "Regular rate and rhythm",
+  "No murmurs",
+  "Radial pulse felt",
+  "Good perfusion",
+  "No edema",
+  "BP within normal limits",
+];
+
+const RS_OPTIONS = [
+  "Bilateral breath sounds clear",
+  "No crackles/wheezes",
+  "Chest expansion normal",
+  "Respiratory rate normal",
+  "Oxygen saturation good",
+  "No accessory muscle use",
+  "Breathing easy",
+];
+
+const PA_OPTIONS = [
+  "Soft, non-tender",
+  "Normal bowel sounds",
+  "No distension",
+  "No organomegaly",
+  "No guarding",
+  "Abdomen lax",
+  "No rebound tenderness",
+];
+
+const DEFAULT_INVESTIGATION_TEMPLATES = [
+  "CBC",
+  "LFT",
+  "KFT",
+  "Blood glucose",
+  "Lipid profile",
+  "Troponin",
+  "BNP",
+  "CXR",
+  "ECG",
+  "Ultrasound",
+  "CT scan",
+  "Blood cultures",
+];
+
+const VITAL_RANGES = {
+  temp: { min: 98.0, max: 100.4, unit: "°F" },
+  pulse: { min: 60, max: 100, unit: "bpm" },
+  bp_systolic: { min: 90, max: 140, unit: "mmHg" },
+  bp_diastolic: { min: 60, max: 90, unit: "mmHg" },
+  rr: { min: 12, max: 20, unit: "/min" },
+  spo2: { min: 95, max: 100, unit: "%" },
+};
+
+const checkVitalStatus = (vital: string, value: string): "normal" | "warning" | "critical" | "unknown" => {
+  if (!value) return "unknown";
+  const num = parseFloat(value);
+  if (isNaN(num)) return "unknown";
+
+  if (vital === "temp") {
+    if (num < 95 || num > 103) return "critical";
+    if (num < 98 || num > 100.4) return "warning";
+    return "normal";
+  }
+  if (vital === "pulse") {
+    if (num < 40 || num > 140) return "critical";
+    if (num < 60 || num > 100) return "warning";
+    return "normal";
+  }
+  if (vital === "bp") {
+    const parts = value.split("/");
+    const systolic = parseFloat(parts[0]);
+    const diastolic = parseFloat(parts[1]);
+    if (isNaN(systolic) || isNaN(diastolic)) return "unknown";
+    if (systolic < 80 || systolic > 180 || diastolic < 50 || diastolic > 120) return "critical";
+    if (systolic < 90 || systolic > 140 || diastolic < 60 || diastolic > 90) return "warning";
+    return "normal";
+  }
+  if (vital === "rr") {
+    if (num < 8 || num > 30) return "critical";
+    if (num < 12 || num > 20) return "warning";
+    return "normal";
+  }
+  if (vital === "spo2") {
+    if (num < 85) return "critical";
+    if (num < 95) return "warning";
+    return "normal";
+  }
+  return "unknown";
+};
+
+const DEFAULT_SYMPTOMS = [
+  "Fever",
+  "Cough",
+  "Shortness of breath",
+  "Chest pain",
+  "Abdominal pain",
+  "Nausea",
+  "Vomiting",
+  "Headache",
+  "Dizziness",
+  "Weakness",
+  "Joint pain",
+  "Back pain",
+];
+
+const DEFAULT_QUICK_FINDINGS = [
+  "Alert & conscious",
+  "Fever present",
+  "Tachycardia",
+  "Tachypnea",
+  "Hypoxia",
+  "Dehydration",
+  "Pallor",
+  "Jaundice",
+  "Cyanosis",
+  "Edema",
+  "Lymphadenopathy",
+  "Hepatomegaly",
+];
+
+const DEFAULT_FOLLOWUP_TEMPLATES = [
+  "Review vitals 4-hourly",
+  "Monitor I/O chart",
+  "Strict bed rest",
+  "Elevate head end",
+  "Deep breathing exercises",
+  "Early mobilization",
+  "Follow-up labs tomorrow",
+  "Review for discharge tomorrow",
+  "Contact doctor if condition worsens",
+  "Cardiac monitoring if indicated",
+];
+
+const DEFAULT_MEDICATION_TEMPLATES = {
+  fever: [
+    { name: "Paracetamol", dose: "1-1-1" },
+    { name: "Ibuprofen", dose: "1-0-1" },
+  ],
+  painAbdomen: [
+    { name: "Omeprazole", dose: "1-0-0" },
+    { name: "Ibuprofen", dose: "1-0-1" },
+    { name: "Dicyclomine", dose: "1-1-1" },
+  ],
+  postOp: [
+    { name: "Paracetamol", dose: "1-1-1" },
+    { name: "Tramadol", dose: "0-0-1" },
+    { name: "Omeprazole", dose: "1-0-0" },
+  ],
+  infection: [
+    { name: "Ceftriaxone", dose: "1-0-1" },
+    { name: "Metronidazole", dose: "1-1-1" },
+    { name: "Paracetamol", dose: "1-1-1" },
+  ],
+  breathlessness: [
+    { name: "Salbutamol", dose: "2-2-2" },
+    { name: "Furosmide", dose: "1-0-0" },
+    { name: "Oxygen", dose: "PRN" },
+  ],
+};
+
+const CONDITION_TEMPLATES = {
+  chf: {
+    name: "Heart Failure (CHF)",
+    investigations: ["BNP", "ECG", "CXR", "Troponin", "LFT", "KFT"],
+    followups: ["Review vitals 4-hourly", "Monitor I/O chart", "Strict bed rest", "Elevate head end", "Follow-up labs tomorrow"],
+    medications: ["fever"]
+  },
+  pneumonia: {
+    name: "Pneumonia",
+    investigations: ["CBC", "CXR", "Blood cultures", "Blood glucose", "KFT"],
+    followups: ["Review vitals 4-hourly", "Deep breathing exercises", "Oxygen if needed", "Follow-up labs tomorrow"],
+    medications: ["fever", "infection"]
+  },
+  postOp: {
+    name: "Post-Operative",
+    investigations: ["CBC", "CXR", "KFT"],
+    followups: ["Review vitals 4-hourly", "Early mobilization", "Deep breathing exercises", "Review for discharge tomorrow"],
+    medications: ["postOp"]
+  },
+  acuteGastroenteritis: {
+    name: "Acute Gastroenteritis",
+    investigations: ["CBC", "Blood glucose", "KFT"],
+    followups: ["Monitor I/O chart", "Elevate head end", "Contact doctor if condition worsens"],
+    medications: ["painAbdomen"]
+  },
+  sepsis: {
+    name: "Sepsis/Infection",
+    investigations: ["CBC", "Blood cultures", "LFT", "KFT", "Lactate"],
+    followups: ["Review vitals hourly", "Monitor I/O chart", "Cardiac monitoring if indicated"],
+    medications: ["fever", "infection"]
+  },
+  stroke: {
+    name: "Stroke/Neuro",
+    investigations: ["CT scan", "ECG", "CBC", "Blood glucose", "Coagulation studies"],
+    followups: ["Neuro checks 2-hourly", "Strict bed rest", "Contact doctor if condition worsens"],
+    medications: ["fever"]
+  },
+};
 
 interface ProgressNote {
   id: number;
@@ -91,6 +321,56 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
     procedureNotes: "",
     followUpInstructions: "",
   });
+
+  // Checkbox templates for systemic examination
+  const [selectedCNS, setSelectedCNS] = useState<string[]>([]);
+  const [selectedCVS, setSelectedCVS] = useState<string[]>([]);
+  const [selectedRS, setSelectedRS] = useState<string[]>([]);
+  const [selectedPA, setSelectedPA] = useState<string[]>([]);
+  const [selectedInvestigations, setSelectedInvestigations] = useState<string[]>([]);
+  const [selectedFollowup, setSelectedFollowup] = useState<string[]>([]);
+  const [selectedMedicationTemplates, setSelectedMedicationTemplates] = useState<string[]>([]);
+  const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
+
+  // Editable templates with localStorage persistence
+  const [investigationTemplates, setInvestigationTemplates] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("investigationTemplates");
+      return stored ? JSON.parse(stored) : DEFAULT_INVESTIGATION_TEMPLATES;
+    }
+    return DEFAULT_INVESTIGATION_TEMPLATES;
+  });
+
+  const [followupTemplates, setFollowupTemplates] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("followupTemplates");
+      return stored ? JSON.parse(stored) : DEFAULT_FOLLOWUP_TEMPLATES;
+    }
+    return DEFAULT_FOLLOWUP_TEMPLATES;
+  });
+
+  const [symptomTemplates, setSymptomTemplates] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("symptomTemplates");
+      return stored ? JSON.parse(stored) : DEFAULT_SYMPTOMS;
+    }
+    return DEFAULT_SYMPTOMS;
+  });
+
+  const [findingTemplates, setFindingTemplates] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("findingTemplates");
+      return stored ? JSON.parse(stored) : DEFAULT_QUICK_FINDINGS;
+    }
+    return DEFAULT_QUICK_FINDINGS;
+  });
+
+  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
+  const [selectedFindings, setSelectedFindings] = useState<string[]>([]);
+
+  const [newInvestigation, setNewInvestigation] = useState("");
+  const [newFollowup, setNewFollowup] = useState("");
+  const [showTemplateEditor, setShowTemplateEditor] = useState(false);
 
   const [medName, setMedName] = useState("");
   const [medDose, setMedDose] = useState("");
@@ -204,9 +484,237 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
       procedureNotes: "",
       followUpInstructions: "",
     });
+    setSelectedCNS([]);
+    setSelectedCVS([]);
+    setSelectedRS([]);
+    setSelectedPA([]);
+    setSelectedInvestigations([]);
+    setSelectedFollowup([]);
+    setSelectedMedicationTemplates([]);
+    setSelectedConditions([]);
+    setSelectedSymptoms([]);
+    setSelectedFindings([]);
     setAiGenerated(false);
     setAiDraftInfo(null);
     setAiDraftOriginalValues(null);
+  };
+
+  const applyVitalTemplate = (template: keyof typeof VITAL_TEMPLATES) => {
+    setForm(f => ({ ...f, vitals: VITAL_TEMPLATES[template] }));
+    toast.success(`Applied ${template} vitals template`);
+  };
+
+  const toggleSystemicOption = (system: 'cns' | 'cvs' | 'rs' | 'pa', option: string) => {
+    if (system === 'cns') {
+      const updated = selectedCNS.includes(option)
+        ? selectedCNS.filter(x => x !== option)
+        : [...selectedCNS, option];
+      setSelectedCNS(updated);
+      setForm(f => ({ ...f, systemic: { ...f.systemic, cns: updated.join("; ") } }));
+    } else if (system === 'cvs') {
+      const updated = selectedCVS.includes(option)
+        ? selectedCVS.filter(x => x !== option)
+        : [...selectedCVS, option];
+      setSelectedCVS(updated);
+      setForm(f => ({ ...f, systemic: { ...f.systemic, cvs: updated.join("; ") } }));
+    } else if (system === 'rs') {
+      const updated = selectedRS.includes(option)
+        ? selectedRS.filter(x => x !== option)
+        : [...selectedRS, option];
+      setSelectedRS(updated);
+      setForm(f => ({ ...f, systemic: { ...f.systemic, rs: updated.join("; ") } }));
+    } else if (system === 'pa') {
+      const updated = selectedPA.includes(option)
+        ? selectedPA.filter(x => x !== option)
+        : [...selectedPA, option];
+      setSelectedPA(updated);
+      setForm(f => ({ ...f, systemic: { ...f.systemic, pa: updated.join("; ") } }));
+    }
+  };
+
+  const toggleInvestigation = (inv: string) => {
+    const updated = selectedInvestigations.includes(inv)
+      ? selectedInvestigations.filter(x => x !== inv)
+      : [...selectedInvestigations, inv];
+    setSelectedInvestigations(updated);
+    setForm(f => ({ ...f, investigations: updated.join(", ") }));
+  };
+
+  const toggleFollowup = (followup: string) => {
+    const updated = selectedFollowup.includes(followup)
+      ? selectedFollowup.filter(x => x !== followup)
+      : [...selectedFollowup, followup];
+    setSelectedFollowup(updated);
+    setForm(f => ({ ...f, followUpInstructions: updated.join("; ") }));
+  };
+
+  const addInvestigationTemplate = () => {
+    if (newInvestigation.trim() && !investigationTemplates.includes(newInvestigation.trim())) {
+      const updated = [...investigationTemplates, newInvestigation.trim()];
+      setInvestigationTemplates(updated);
+      localStorage.setItem("investigationTemplates", JSON.stringify(updated));
+      setNewInvestigation("");
+      toast.success("Investigation template added");
+    }
+  };
+
+  const removeInvestigationTemplate = (inv: string) => {
+    const updated = investigationTemplates.filter(x => x !== inv);
+    setInvestigationTemplates(updated);
+    localStorage.setItem("investigationTemplates", JSON.stringify(updated));
+    setSelectedInvestigations(selectedInvestigations.filter(x => x !== inv));
+    toast.success("Investigation template removed");
+  };
+
+  const addFollowupTemplate = () => {
+    if (newFollowup.trim() && !followupTemplates.includes(newFollowup.trim())) {
+      const updated = [...followupTemplates, newFollowup.trim()];
+      setFollowupTemplates(updated);
+      localStorage.setItem("followupTemplates", JSON.stringify(updated));
+      setNewFollowup("");
+      toast.success("Follow-up template added");
+    }
+  };
+
+  const removeFollowupTemplate = (followup: string) => {
+    const updated = followupTemplates.filter(x => x !== followup);
+    setFollowupTemplates(updated);
+    localStorage.setItem("followupTemplates", JSON.stringify(updated));
+    setSelectedFollowup(selectedFollowup.filter(x => x !== followup));
+    toast.success("Follow-up template removed");
+  };
+
+  const resetTemplatesToDefault = () => {
+    setInvestigationTemplates(DEFAULT_INVESTIGATION_TEMPLATES);
+    localStorage.setItem("investigationTemplates", JSON.stringify(DEFAULT_INVESTIGATION_TEMPLATES));
+    setFollowupTemplates(DEFAULT_FOLLOWUP_TEMPLATES);
+    localStorage.setItem("followupTemplates", JSON.stringify(DEFAULT_FOLLOWUP_TEMPLATES));
+    setSymptomTemplates(DEFAULT_SYMPTOMS);
+    localStorage.setItem("symptomTemplates", JSON.stringify(DEFAULT_SYMPTOMS));
+    setFindingTemplates(DEFAULT_QUICK_FINDINGS);
+    localStorage.setItem("findingTemplates", JSON.stringify(DEFAULT_QUICK_FINDINGS));
+    toast.success("All templates reset to default");
+  };
+
+  const toggleSymptom = (symptom: string) => {
+    const updated = selectedSymptoms.includes(symptom)
+      ? selectedSymptoms.filter(x => x !== symptom)
+      : [...selectedSymptoms, symptom];
+    setSelectedSymptoms(updated);
+    setForm(f => ({ ...f, subjectiveComplaints: updated.join("; ") }));
+  };
+
+  const toggleFinding = (finding: string) => {
+    const updated = selectedFindings.includes(finding)
+      ? selectedFindings.filter(x => x !== finding)
+      : [...selectedFindings, finding];
+    setSelectedFindings(updated);
+    setForm(f => ({ ...f, objectiveFindings: updated.join("; ") }));
+  };
+
+  const addSymptomTemplate = (newSymptom: string) => {
+    if (newSymptom.trim() && !symptomTemplates.includes(newSymptom.trim())) {
+      const updated = [...symptomTemplates, newSymptom.trim()];
+      setSymptomTemplates(updated);
+      localStorage.setItem("symptomTemplates", JSON.stringify(updated));
+      return true;
+    }
+    return false;
+  };
+
+  const removeSymptomTemplate = (symptom: string) => {
+    const updated = symptomTemplates.filter(x => x !== symptom);
+    setSymptomTemplates(updated);
+    localStorage.setItem("symptomTemplates", JSON.stringify(updated));
+    setSelectedSymptoms(selectedSymptoms.filter(x => x !== symptom));
+  };
+
+  const addFindingTemplate = (newFinding: string) => {
+    if (newFinding.trim() && !findingTemplates.includes(newFinding.trim())) {
+      const updated = [...findingTemplates, newFinding.trim()];
+      setFindingTemplates(updated);
+      localStorage.setItem("findingTemplates", JSON.stringify(updated));
+      return true;
+    }
+    return false;
+  };
+
+  const removeFindingTemplate = (finding: string) => {
+    const updated = findingTemplates.filter(x => x !== finding);
+    setFindingTemplates(updated);
+    localStorage.setItem("findingTemplates", JSON.stringify(updated));
+    setSelectedFindings(selectedFindings.filter(x => x !== finding));
+  };
+
+  const toggleMedicationTemplate = (templateKey: string) => {
+    const updated = selectedMedicationTemplates.includes(templateKey)
+      ? selectedMedicationTemplates.filter(x => x !== templateKey)
+      : [...selectedMedicationTemplates, templateKey];
+    setSelectedMedicationTemplates(updated);
+
+    // Merge medications from selected templates
+    const mergedMeds: { [key: string]: { name: string; dose: string; action: "Added" | "Stopped" | "Modified" } } = {};
+    updated.forEach(key => {
+      const meds = DEFAULT_MEDICATION_TEMPLATES[key as keyof typeof DEFAULT_MEDICATION_TEMPLATES];
+      if (meds) {
+        meds.forEach(med => {
+          mergedMeds[med.name] = { name: med.name, dose: med.dose, action: "Added" };
+        });
+      }
+    });
+
+    const finalMeds = Object.values(mergedMeds);
+    setForm(f => ({ ...f, medicines: finalMeds }));
+
+    if (updated.length > 0) {
+      toast.success(`Merged ${finalMeds.length} medications from ${updated.length} template(s)`);
+    }
+  };
+
+  const toggleConditionTemplate = (conditionKey: string) => {
+    const updated = selectedConditions.includes(conditionKey)
+      ? selectedConditions.filter(x => x !== conditionKey)
+      : [...selectedConditions, conditionKey];
+    setSelectedConditions(updated);
+
+    // Merge all data from selected conditions
+    const mergedInv = new Set<string>();
+    const mergedFollowup = new Set<string>();
+    const mergedMeds: { [key: string]: { name: string; dose: string; action: "Added" | "Stopped" | "Modified" } } = {};
+
+    updated.forEach(key => {
+      const condition = CONDITION_TEMPLATES[key as keyof typeof CONDITION_TEMPLATES];
+      if (condition) {
+        // Merge investigations
+        condition.investigations.forEach(inv => mergedInv.add(inv));
+
+        // Merge follow-ups
+        condition.followups.forEach(followup => mergedFollowup.add(followup));
+
+        // Merge medications
+        condition.medications.forEach(medKey => {
+          const meds = DEFAULT_MEDICATION_TEMPLATES[medKey as keyof typeof DEFAULT_MEDICATION_TEMPLATES];
+          if (meds) {
+            meds.forEach(med => {
+              mergedMeds[med.name] = { name: med.name, dose: med.dose, action: "Added" };
+            });
+          }
+        });
+      }
+    });
+
+    setSelectedInvestigations(Array.from(mergedInv));
+    setSelectedFollowup(Array.from(mergedFollowup));
+    setForm(f => ({
+      ...f,
+      investigations: Array.from(mergedInv).join(", "),
+      followUpInstructions: Array.from(mergedFollowup).join("; "),
+      medicines: Object.values(mergedMeds),
+    }));
+
+    if (updated.length > 0) {
+      toast.success(`Loaded ${updated.length} condition template(s) - ${Array.from(mergedInv).length} investigations, ${Array.from(mergedFollowup).length} follow-ups, ${Object.keys(mergedMeds).length} medications`);
+    }
   };
 
   const handleOpenEdit = (note: ProgressNote) => {
@@ -234,6 +742,79 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
       procedureNotes: note.procedureNotes || "",
       followUpInstructions: note.followUpInstructions || "",
     });
+
+    // Restore checkbox states from existing data
+    if (note.examinationSystemic?.cns) {
+      setSelectedCNS(note.examinationSystemic.cns.split("; ").filter(Boolean));
+    }
+    if (note.examinationSystemic?.cvs) {
+      setSelectedCVS(note.examinationSystemic.cvs.split("; ").filter(Boolean));
+    }
+    if (note.examinationSystemic?.rs) {
+      setSelectedRS(note.examinationSystemic.rs.split("; ").filter(Boolean));
+    }
+    if (note.examinationSystemic?.pa) {
+      setSelectedPA(note.examinationSystemic.pa.split("; ").filter(Boolean));
+    }
+    if (note.investigationsAdvised) {
+      setSelectedInvestigations(note.investigationsAdvised);
+    }
+    if (note.followUpInstructions) {
+      setSelectedFollowup(note.followUpInstructions.split("; ").filter(Boolean));
+    }
+  };
+
+  const copyFromPreviousDay = () => {
+    if (!notes || notes.length === 0) {
+      toast.error("No previous notes to copy from");
+      return;
+    }
+    const prevNote = notes[0]; // Most recent is first
+    setForm({
+      subjectiveComplaints: prevNote.subjectiveComplaints ? `[From previous day] ${prevNote.subjectiveComplaints}` : "",
+      objectiveFindings: prevNote.objectiveFindings ? `[From previous day] ${prevNote.objectiveFindings}` : "",
+      vitals: {
+        temp: prevNote.vitalsSummary?.temp || "",
+        pulse: prevNote.vitalsSummary?.pulse || "",
+        bp: prevNote.vitalsSummary?.bp || "",
+        rr: prevNote.vitalsSummary?.rr || "",
+        spo2: prevNote.vitalsSummary?.spo2 || "",
+      },
+      systemic: {
+        cns: prevNote.examinationSystemic?.cns || "",
+        cvs: prevNote.examinationSystemic?.cvs || "",
+        rs: prevNote.examinationSystemic?.rs || "",
+        pa: prevNote.examinationSystemic?.pa || "",
+      },
+      diagnosisAssessment: prevNote.diagnosisAssessment || "",
+      plan: prevNote.plan || "",
+      investigations: Array.isArray(prevNote.investigationsAdvised) ? prevNote.investigationsAdvised.join(", ") : "",
+      medicines: [],
+      procedureNotes: "",
+      followUpInstructions: prevNote.followUpInstructions || "",
+    });
+
+    if (prevNote.examinationSystemic?.cns) {
+      setSelectedCNS(prevNote.examinationSystemic.cns.split("; ").filter(Boolean));
+    }
+    if (prevNote.examinationSystemic?.cvs) {
+      setSelectedCVS(prevNote.examinationSystemic.cvs.split("; ").filter(Boolean));
+    }
+    if (prevNote.examinationSystemic?.rs) {
+      setSelectedRS(prevNote.examinationSystemic.rs.split("; ").filter(Boolean));
+    }
+    if (prevNote.examinationSystemic?.pa) {
+      setSelectedPA(prevNote.examinationSystemic.pa.split("; ").filter(Boolean));
+    }
+    if (prevNote.investigationsAdvised) {
+      setSelectedInvestigations(prevNote.investigationsAdvised);
+    }
+    if (prevNote.followUpInstructions) {
+      setSelectedFollowup(prevNote.followUpInstructions.split("; ").filter(Boolean));
+    }
+
+    setShowAdd(true);
+    toast.success("Loaded findings from previous day - edit as needed");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -387,9 +968,16 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
           <CardDescription>Clinical daily checkins and assessment notes</CardDescription>
         </div>
         {isDoctorOrAdmin && (
-          <Button size="sm" onClick={() => { resetForm(); setShowAdd(true); }} className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white">
-            <Plus className="w-4 h-4 mr-1" /> Add Daily Note
-          </Button>
+          <div className="flex gap-2">
+            {notes && notes.length > 0 && (
+              <Button size="sm" onClick={copyFromPreviousDay} variant="outline" className="rounded-xl">
+                ↻ Copy Previous Day
+              </Button>
+            )}
+            <Button size="sm" onClick={() => { resetForm(); setShowAdd(true); }} className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white">
+              <Plus className="w-4 h-4 mr-1" /> Add Daily Note
+            </Button>
+          </div>
         )}
       </CardHeader>
       <CardContent className="pt-4">
@@ -489,6 +1077,200 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
           </div>
         )}
       </CardContent>
+
+      {/* Template Editor Dialog */}
+      <Dialog open={showTemplateEditor} onOpenChange={setShowTemplateEditor}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Customize Templates & Quick Selections</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 text-xs">
+            {/* Symptoms Editor */}
+            <div className="space-y-2 border rounded-lg p-3 bg-amber-50/50 dark:bg-amber-950/20">
+              <Label className="font-semibold">Symptoms (Subjective Complaints)</Label>
+              <div className="flex gap-2 mb-2">
+                <Input
+                  placeholder="Add new symptom (e.g., Joint pain)"
+                  onKeyPress={e => {
+                    if (e.key === "Enter") {
+                      const inp = e.currentTarget;
+                      if (addSymptomTemplate(inp.value)) {
+                        inp.value = "";
+                        toast.success("Symptom added");
+                      }
+                    }
+                  }}
+                  className="h-8 text-xs flex-1"
+                />
+                <Button
+                  type="button"
+                  onClick={(e) => {
+                    const inp = (e.currentTarget.parentElement?.querySelector('input') as HTMLInputElement);
+                    if (inp && addSymptomTemplate(inp.value)) {
+                      inp.value = "";
+                      toast.success("Symptom added");
+                    }
+                  }}
+                  className="h-8 bg-amber-700 text-white text-xs rounded-lg"
+                >
+                  Add
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {symptomTemplates.map(symptom => (
+                  <Badge key={symptom} variant="secondary" className="flex items-center gap-1 text-[10px] bg-amber-100">
+                    {symptom}
+                    <button
+                      type="button"
+                      onClick={() => { removeSymptomTemplate(symptom); toast.success("Symptom removed"); }}
+                      className="text-red-600 font-bold ml-1 hover:text-red-800"
+                    >
+                      ×
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            {/* Findings Editor */}
+            <div className="space-y-2 border rounded-lg p-3 bg-blue-50/50 dark:bg-blue-950/20">
+              <Label className="font-semibold">Physical Findings (Objective)</Label>
+              <div className="flex gap-2 mb-2">
+                <Input
+                  placeholder="Add new finding (e.g., Splenomegaly)"
+                  onKeyPress={e => {
+                    if (e.key === "Enter") {
+                      const inp = e.currentTarget;
+                      if (addFindingTemplate(inp.value)) {
+                        inp.value = "";
+                        toast.success("Finding added");
+                      }
+                    }
+                  }}
+                  className="h-8 text-xs flex-1"
+                />
+                <Button
+                  type="button"
+                  onClick={(e) => {
+                    const inp = (e.currentTarget.parentElement?.querySelector('input') as HTMLInputElement);
+                    if (inp && addFindingTemplate(inp.value)) {
+                      inp.value = "";
+                      toast.success("Finding added");
+                    }
+                  }}
+                  className="h-8 bg-blue-700 text-white text-xs rounded-lg"
+                >
+                  Add
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {findingTemplates.map(finding => (
+                  <Badge key={finding} variant="secondary" className="flex items-center gap-1 text-[10px] bg-blue-100">
+                    {finding}
+                    <button
+                      type="button"
+                      onClick={() => { removeFindingTemplate(finding); toast.success("Finding removed"); }}
+                      className="text-red-600 font-bold ml-1 hover:text-red-800"
+                    >
+                      ×
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            {/* Investigations Editor */}
+            <div className="space-y-2 border rounded-lg p-3 bg-purple-50/50 dark:bg-purple-950/20">
+              <Label className="font-semibold">Investigation Templates</Label>
+              <div className="flex gap-2 mb-2">
+                <Input
+                  placeholder="Add new investigation (e.g., MRI Brain)"
+                  value={newInvestigation}
+                  onChange={e => setNewInvestigation(e.target.value)}
+                  onKeyPress={e => e.key === "Enter" && addInvestigationTemplate()}
+                  className="h-8 text-xs flex-1"
+                />
+                <Button
+                  type="button"
+                  onClick={addInvestigationTemplate}
+                  className="h-8 bg-purple-700 text-white text-xs rounded-lg"
+                >
+                  Add
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {investigationTemplates.map(inv => (
+                  <Badge key={inv} variant="secondary" className="flex items-center gap-1 text-[10px] bg-purple-100">
+                    {inv}
+                    <button
+                      type="button"
+                      onClick={() => removeInvestigationTemplate(inv)}
+                      className="text-red-600 font-bold ml-1 hover:text-red-800"
+                    >
+                      ×
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            {/* Follow-up Editor */}
+            <div className="space-y-2 border rounded-lg p-3 bg-cyan-50/50 dark:bg-cyan-950/20">
+              <Label className="font-semibold">Follow-up Templates</Label>
+              <div className="flex gap-2 mb-2">
+                <Input
+                  placeholder="Add new follow-up instruction"
+                  value={newFollowup}
+                  onChange={e => setNewFollowup(e.target.value)}
+                  onKeyPress={e => e.key === "Enter" && addFollowupTemplate()}
+                  className="h-8 text-xs flex-1"
+                />
+                <Button
+                  type="button"
+                  onClick={addFollowupTemplate}
+                  className="h-8 bg-cyan-700 text-white text-xs rounded-lg"
+                >
+                  Add
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {followupTemplates.map(followup => (
+                  <Badge key={followup} variant="secondary" className="flex items-center gap-1 text-[10px] bg-cyan-100">
+                    {followup}
+                    <button
+                      type="button"
+                      onClick={() => removeFollowupTemplate(followup)}
+                      className="text-red-600 font-bold ml-1 hover:text-red-800"
+                    >
+                      ×
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={resetTemplatesToDefault}
+              className="w-full text-xs"
+            >
+              Reset All Templates to Defaults
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowTemplateEditor(false)}
+              className="rounded-xl"
+            >
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add / Edit Dialog */}
       <Dialog open={showAdd || !!editingNote} onOpenChange={(o) => { if (!o) { setShowAdd(false); setEditingNote(null); resetForm(); } }}>
@@ -591,63 +1373,249 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Subjective Complaints</Label>
-                <Textarea value={form.subjectiveComplaints} onChange={e => setForm(f => ({ ...f, subjectiveComplaints: e.target.value }))} className="mt-1 h-16 rounded-xl" placeholder="Patient's complaints..." />
+            {/* Subjective Complaints - Chocolate Box Selector */}
+            <div className="border p-3 rounded-xl space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="font-semibold flex items-center gap-1"><Zap className="w-3.5 h-3.5 text-amber-500" /> Symptoms (Click to Select)</Label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowTemplateEditor(true)}
+                  className="h-6 text-xs text-slate-500 hover:text-slate-700"
+                >
+                  ⚙ Customize
+                </Button>
               </div>
-              <div>
-                <Label>Objective Findings</Label>
-                <Textarea value={form.objectiveFindings} onChange={e => setForm(f => ({ ...f, objectiveFindings: e.target.value }))} className="mt-1 h-16 rounded-xl" placeholder="Clinical findings..." />
+              <div className="grid grid-cols-3 gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg max-h-40 overflow-y-auto">
+                {symptomTemplates.map(symptom => (
+                  <button
+                    key={symptom}
+                    type="button"
+                    onClick={() => toggleSymptom(symptom)}
+                    className={`px-3 py-2 text-xs rounded-lg border-2 font-semibold transition ${
+                      selectedSymptoms.includes(symptom)
+                        ? "bg-amber-400 text-amber-900 border-amber-600 shadow-md scale-105"
+                        : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-amber-200 dark:border-amber-800 hover:shadow-sm hover:border-amber-400"
+                    }`}
+                  >
+                    {symptom}
+                  </button>
+                ))}
               </div>
+              <Textarea value={form.subjectiveComplaints} onChange={e => setForm(f => ({ ...f, subjectiveComplaints: e.target.value }))} className="mt-2 h-14 rounded-lg text-xs" placeholder="Or type custom complaints..." />
             </div>
 
-            {/* Vitals Summary */}
+            {/* Objective Findings - Chocolate Box Selector */}
             <div className="border p-3 rounded-xl space-y-2">
-              <Label className="font-semibold flex items-center gap-1"><Heart className="w-3.5 h-3.5 text-rose-500" /> Vitals Summary</Label>
+              <div className="flex items-center justify-between">
+                <Label className="font-semibold flex items-center gap-1"><Zap className="w-3.5 h-3.5 text-blue-500" /> Physical Findings (Click to Select)</Label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowTemplateEditor(true)}
+                  className="h-6 text-xs text-slate-500 hover:text-slate-700"
+                >
+                  ⚙ Customize
+                </Button>
+              </div>
+              <div className="grid grid-cols-3 gap-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg max-h-40 overflow-y-auto">
+                {findingTemplates.map(finding => (
+                  <button
+                    key={finding}
+                    type="button"
+                    onClick={() => toggleFinding(finding)}
+                    className={`px-3 py-2 text-xs rounded-lg border-2 font-semibold transition ${
+                      selectedFindings.includes(finding)
+                        ? "bg-blue-400 text-blue-900 border-blue-600 shadow-md scale-105"
+                        : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-blue-200 dark:border-blue-800 hover:shadow-sm hover:border-blue-400"
+                    }`}
+                  >
+                    {finding}
+                  </button>
+                ))}
+              </div>
+              <Textarea value={form.objectiveFindings} onChange={e => setForm(f => ({ ...f, objectiveFindings: e.target.value }))} className="mt-2 h-14 rounded-lg text-xs" placeholder="Or type custom findings..." />
+            </div>
+
+            {/* Vitals Summary with Quick Templates */}
+            <div className="border p-3 rounded-xl space-y-2">
+              <Label className="font-semibold flex items-center gap-1"><Heart className="w-3.5 h-3.5 text-rose-500" /> Vitals Summary (Quick Templates)</Label>
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {Object.keys(VITAL_TEMPLATES).map(key => (
+                  <Button
+                    key={key}
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => applyVitalTemplate(key as keyof typeof VITAL_TEMPLATES)}
+                    className="h-7 text-xs rounded-lg capitalize"
+                  >
+                    {key === 'normal' ? '✓ Normal' : key}
+                  </Button>
+                ))}
+              </div>
               <div className="grid grid-cols-5 gap-2">
                 <div>
-                  <Label className="text-[10px]">Temp (°F)</Label>
-                  <Input size={5} value={form.vitals.temp} onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, temp: e.target.value } }))} className="mt-1 h-8 rounded-lg" placeholder="98.6" />
+                  <Label className="text-[10px] flex items-center gap-1">
+                    Temp (°F)
+                    {checkVitalStatus("temp", form.vitals.temp) === "critical" && <ShieldAlert className="w-3 h-3 text-red-600" />}
+                    {checkVitalStatus("temp", form.vitals.temp) === "warning" && <ShieldAlert className="w-3 h-3 text-orange-500" />}
+                  </Label>
+                  <Input
+                    size={5}
+                    value={form.vitals.temp}
+                    onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, temp: e.target.value } }))}
+                    className={`mt-1 h-8 rounded-lg text-xs border ${
+                      checkVitalStatus("temp", form.vitals.temp) === "critical" ? "border-red-500 bg-red-50" :
+                      checkVitalStatus("temp", form.vitals.temp) === "warning" ? "border-orange-500 bg-orange-50" : ""
+                    }`}
+                    placeholder="98.6"
+                  />
                 </div>
                 <div>
-                  <Label className="text-[10px]">Pulse (bpm)</Label>
-                  <Input value={form.vitals.pulse} onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, pulse: e.target.value } }))} className="mt-1 h-8 rounded-lg" placeholder="72" />
+                  <Label className="text-[10px] flex items-center gap-1">
+                    Pulse (bpm)
+                    {checkVitalStatus("pulse", form.vitals.pulse) === "critical" && <ShieldAlert className="w-3 h-3 text-red-600" />}
+                    {checkVitalStatus("pulse", form.vitals.pulse) === "warning" && <ShieldAlert className="w-3 h-3 text-orange-500" />}
+                  </Label>
+                  <Input
+                    value={form.vitals.pulse}
+                    onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, pulse: e.target.value } }))}
+                    className={`mt-1 h-8 rounded-lg text-xs border ${
+                      checkVitalStatus("pulse", form.vitals.pulse) === "critical" ? "border-red-500 bg-red-50" :
+                      checkVitalStatus("pulse", form.vitals.pulse) === "warning" ? "border-orange-500 bg-orange-50" : ""
+                    }`}
+                    placeholder="72"
+                  />
                 </div>
                 <div>
-                  <Label className="text-[10px]">BP (mmHg)</Label>
-                  <Input value={form.vitals.bp} onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, bp: e.target.value } }))} className="mt-1 h-8 rounded-lg" placeholder="120/80" />
+                  <Label className="text-[10px] flex items-center gap-1">
+                    BP (mmHg)
+                    {checkVitalStatus("bp", form.vitals.bp) === "critical" && <ShieldAlert className="w-3 h-3 text-red-600" />}
+                    {checkVitalStatus("bp", form.vitals.bp) === "warning" && <ShieldAlert className="w-3 h-3 text-orange-500" />}
+                  </Label>
+                  <Input
+                    value={form.vitals.bp}
+                    onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, bp: e.target.value } }))}
+                    className={`mt-1 h-8 rounded-lg text-xs border ${
+                      checkVitalStatus("bp", form.vitals.bp) === "critical" ? "border-red-500 bg-red-50" :
+                      checkVitalStatus("bp", form.vitals.bp) === "warning" ? "border-orange-500 bg-orange-50" : ""
+                    }`}
+                    placeholder="120/80"
+                  />
                 </div>
                 <div>
-                  <Label className="text-[10px]">Resp Rate (/min)</Label>
-                  <Input value={form.vitals.rr} onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, rr: e.target.value } }))} className="mt-1 h-8 rounded-lg" placeholder="18" />
+                  <Label className="text-[10px] flex items-center gap-1">
+                    Resp Rate (/min)
+                    {checkVitalStatus("rr", form.vitals.rr) === "critical" && <ShieldAlert className="w-3 h-3 text-red-600" />}
+                    {checkVitalStatus("rr", form.vitals.rr) === "warning" && <ShieldAlert className="w-3 h-3 text-orange-500" />}
+                  </Label>
+                  <Input
+                    value={form.vitals.rr}
+                    onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, rr: e.target.value } }))}
+                    className={`mt-1 h-8 rounded-lg text-xs border ${
+                      checkVitalStatus("rr", form.vitals.rr) === "critical" ? "border-red-500 bg-red-50" :
+                      checkVitalStatus("rr", form.vitals.rr) === "warning" ? "border-orange-500 bg-orange-50" : ""
+                    }`}
+                    placeholder="18"
+                  />
                 </div>
                 <div>
-                  <Label className="text-[10px]">SpO2 (%)</Label>
-                  <Input value={form.vitals.spo2} onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, spo2: e.target.value } }))} className="mt-1 h-8 rounded-lg" placeholder="98" />
+                  <Label className="text-[10px] flex items-center gap-1">
+                    SpO2 (%)
+                    {checkVitalStatus("spo2", form.vitals.spo2) === "critical" && <ShieldAlert className="w-3 h-3 text-red-600" />}
+                    {checkVitalStatus("spo2", form.vitals.spo2) === "warning" && <ShieldAlert className="w-3 h-3 text-orange-500" />}
+                  </Label>
+                  <Input
+                    value={form.vitals.spo2}
+                    onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, spo2: e.target.value } }))}
+                    className={`mt-1 h-8 rounded-lg text-xs border ${
+                      checkVitalStatus("spo2", form.vitals.spo2) === "critical" ? "border-red-500 bg-red-50" :
+                      checkVitalStatus("spo2", form.vitals.spo2) === "warning" ? "border-orange-500 bg-orange-50" : ""
+                    }`}
+                    placeholder="98"
+                  />
                 </div>
               </div>
             </div>
 
-            {/* Systemic Exam */}
-            <div className="border p-3 rounded-xl space-y-2">
-              <Label className="font-semibold">Systemic Examination (CNS / CVS / RS / PA)</Label>
-              <div className="grid grid-cols-4 gap-2">
-                <div>
-                  <Label className="text-[10px]">CNS</Label>
-                  <Input value={form.systemic.cns} onChange={e => setForm(f => ({ ...f, systemic: { ...f.systemic, cns: e.target.value } }))} className="mt-1 h-8 rounded-lg" placeholder="Conscious/Oriented..." />
+            {/* Systemic Examination with Checkboxes */}
+            <div className="border p-3 rounded-xl space-y-3">
+              <Label className="font-semibold">Systemic Examination (Check Common Findings)</Label>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* CNS */}
+                <div className="border rounded-lg p-2 space-y-2 bg-slate-50/50 dark:bg-slate-900/20">
+                  <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">CNS (Central Nervous)</Label>
+                  <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                    {CNS_OPTIONS.map(option => (
+                      <div key={option} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`cns-${option}`}
+                          checked={selectedCNS.includes(option)}
+                          onCheckedChange={() => toggleSystemicOption('cns', option)}
+                          className="h-4 w-4"
+                        />
+                        <Label htmlFor={`cns-${option}`} className="text-[10px] cursor-pointer font-normal">{option}</Label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div>
-                  <Label className="text-[10px]">CVS</Label>
-                  <Input value={form.systemic.cvs} onChange={e => setForm(f => ({ ...f, systemic: { ...f.systemic, cvs: e.target.value } }))} className="mt-1 h-8 rounded-lg" placeholder="S1 S2 heard..." />
+
+                {/* CVS */}
+                <div className="border rounded-lg p-2 space-y-2 bg-red-50/30 dark:bg-red-950/20">
+                  <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">CVS (Cardiovascular)</Label>
+                  <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                    {CVS_OPTIONS.map(option => (
+                      <div key={option} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`cvs-${option}`}
+                          checked={selectedCVS.includes(option)}
+                          onCheckedChange={() => toggleSystemicOption('cvs', option)}
+                          className="h-4 w-4"
+                        />
+                        <Label htmlFor={`cvs-${option}`} className="text-[10px] cursor-pointer font-normal">{option}</Label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div>
-                  <Label className="text-[10px]">RS</Label>
-                  <Input value={form.systemic.rs} onChange={e => setForm(f => ({ ...f, systemic: { ...f.systemic, rs: e.target.value } }))} className="mt-1 h-8 rounded-lg" placeholder="Bilateral clear..." />
+
+                {/* RS */}
+                <div className="border rounded-lg p-2 space-y-2 bg-blue-50/30 dark:bg-blue-950/20">
+                  <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">RS (Respiratory)</Label>
+                  <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                    {RS_OPTIONS.map(option => (
+                      <div key={option} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`rs-${option}`}
+                          checked={selectedRS.includes(option)}
+                          onCheckedChange={() => toggleSystemicOption('rs', option)}
+                          className="h-4 w-4"
+                        />
+                        <Label htmlFor={`rs-${option}`} className="text-[10px] cursor-pointer font-normal">{option}</Label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div>
-                  <Label className="text-[10px]">PA (Abdomen)</Label>
-                  <Input value={form.systemic.pa} onChange={e => setForm(f => ({ ...f, systemic: { ...f.systemic, pa: e.target.value } }))} className="mt-1 h-8 rounded-lg" placeholder="Soft/Non-tender..." />
+
+                {/* PA */}
+                <div className="border rounded-lg p-2 space-y-2 bg-green-50/30 dark:bg-green-950/20">
+                  <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">PA (Abdominal)</Label>
+                  <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                    {PA_OPTIONS.map(option => (
+                      <div key={option} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`pa-${option}`}
+                          checked={selectedPA.includes(option)}
+                          onCheckedChange={() => toggleSystemicOption('pa', option)}
+                          className="h-4 w-4"
+                        />
+                        <Label htmlFor={`pa-${option}`} className="text-[10px] cursor-pointer font-normal">{option}</Label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -666,6 +1634,26 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
             {/* Medicines Changed */}
             <div className="border p-3 rounded-xl space-y-2">
               <Label className="font-semibold">Medicines Changed / Adjusted</Label>
+
+              {/* Medication Quick Select Templates */}
+              <div className="bg-slate-50 dark:bg-slate-900/30 p-2 rounded-lg space-y-1.5 mb-2 border border-slate-200 dark:border-slate-700">
+                <div className="text-[10px] font-semibold text-slate-600 dark:text-slate-400">Quick Select by Condition:</div>
+                <div className="flex flex-wrap gap-1">
+                  {Object.keys(DEFAULT_MEDICATION_TEMPLATES).map(key => (
+                    <Button
+                      key={key}
+                      type="button"
+                      size="sm"
+                      variant={selectedMedicationTemplates.includes(key) ? "default" : "outline"}
+                      onClick={() => toggleMedicationTemplate(key)}
+                      className="h-6 text-xs rounded-lg capitalize"
+                    >
+                      {key.replace(/([A-Z])/g, ' $1').trim()}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
               <div className="flex gap-2">
                 <Input placeholder="Medicine name" value={medName} onChange={e => setMedName(e.target.value)} className="h-8 text-xs" />
                 <Input placeholder="Dose (e.g. 1-0-1)" value={medDose} onChange={e => setMedDose(e.target.value)} className="h-8 text-xs" />
@@ -686,19 +1674,96 @@ export default function ProgressNotesSection({ admissionId, patientId, patientNa
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
-              <div className="col-span-1">
-                <Label>Investigations Advised</Label>
-                <Input value={form.investigations} onChange={e => setForm(f => ({ ...f, investigations: e.target.value }))} className="mt-1 h-9 rounded-lg" placeholder="CBC, Chest X-Ray..." />
+            {/* Condition-Based Quick Select */}
+            <div className="border p-3 rounded-xl space-y-2 bg-indigo-50/30 dark:bg-indigo-950/20">
+              <Label className="font-semibold">Select by Condition (Quick Fill)</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {Object.entries(CONDITION_TEMPLATES).map(([key, template]) => (
+                  <Button
+                    key={key}
+                    type="button"
+                    size="sm"
+                    variant={selectedConditions.includes(key) ? "default" : "outline"}
+                    onClick={() => toggleConditionTemplate(key)}
+                    className="h-7 text-xs rounded-lg"
+                  >
+                    {template.name}
+                  </Button>
+                ))}
               </div>
-              <div className="col-span-1">
-                <Label>Procedure Notes</Label>
-                <Input value={form.procedureNotes} onChange={e => setForm(f => ({ ...f, procedureNotes: e.target.value }))} className="mt-1 h-9 rounded-lg" placeholder="e.g. Catheterization..." />
+              {selectedConditions.length > 0 && (
+                <div className="text-[10px] text-slate-600 dark:text-slate-400 mt-1">
+                  ✓ {selectedConditions.length} condition(s) selected - will merge investigations, follow-ups & meds
+                </div>
+              )}
+            </div>
+
+            {/* Investigations with Quick Select */}
+            <div className="border p-3 rounded-xl space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="font-semibold flex items-center gap-1"><Zap className="w-3.5 h-3.5 text-purple-500" /> Investigations Advised (Quick Select)</Label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowTemplateEditor(true)}
+                  className="h-6 text-xs text-slate-500 hover:text-slate-700"
+                >
+                  ⚙ Customize
+                </Button>
               </div>
-              <div className="col-span-1">
-                <Label>Follow-Up Instructions</Label>
-                <Input value={form.followUpInstructions} onChange={e => setForm(f => ({ ...f, followUpInstructions: e.target.value }))} className="mt-1 h-9 rounded-lg" placeholder="Review in OPD..." />
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {investigationTemplates.map(inv => (
+                  <Button
+                    key={inv}
+                    type="button"
+                    size="sm"
+                    variant={selectedInvestigations.includes(inv) ? "default" : "outline"}
+                    onClick={() => toggleInvestigation(inv)}
+                    className="h-7 text-xs rounded-lg"
+                  >
+                    {inv}
+                  </Button>
+                ))}
               </div>
+              <Input value={form.investigations} onChange={e => setForm(f => ({ ...f, investigations: e.target.value }))} className="h-9 rounded-lg text-xs" placeholder="Or enter custom investigations..." />
+            </div>
+
+            {/* Procedure Notes */}
+            <div>
+              <Label>Procedure Notes</Label>
+              <Input value={form.procedureNotes} onChange={e => setForm(f => ({ ...f, procedureNotes: e.target.value }))} className="mt-1 h-9 rounded-lg text-xs" placeholder="e.g. Catheterization, Aspiration..." />
+            </div>
+
+            {/* Follow-up Instructions with Quick Select */}
+            <div className="border p-3 rounded-xl space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="font-semibold flex items-center gap-1"><Zap className="w-3.5 h-3.5 text-blue-500" /> Follow-Up Instructions (Quick Select)</Label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowTemplateEditor(true)}
+                  className="h-6 text-xs text-slate-500 hover:text-slate-700"
+                >
+                  ⚙ Customize
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {followupTemplates.map(followup => (
+                  <Button
+                    key={followup}
+                    type="button"
+                    size="sm"
+                    variant={selectedFollowup.includes(followup) ? "default" : "outline"}
+                    onClick={() => toggleFollowup(followup)}
+                    className="h-7 text-xs rounded-lg"
+                  >
+                    {followup}
+                  </Button>
+                ))}
+              </div>
+              <Input value={form.followUpInstructions} onChange={e => setForm(f => ({ ...f, followUpInstructions: e.target.value }))} className="h-9 rounded-lg text-xs" placeholder="Or enter custom follow-up..." />
             </div>
 
             <DialogFooter>

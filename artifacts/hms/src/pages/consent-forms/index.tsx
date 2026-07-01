@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +22,8 @@ import {
   FileSignature, Plus, Search, Printer, CheckCircle2, FileText,
 } from "lucide-react";
 import { CONSENT_TEMPLATES, type ConsentTemplate } from "./templates";
+import { DocumentIntegration } from "@/components/document-integration";
+import { DocumentUpload } from "@/components/document-upload";
 
 interface ConsentForm {
   id: number; formNo: string; formType: string; title: string;
@@ -76,25 +78,49 @@ export default function ConsentFormsPage() {
 
   const { data: forms } = useQuery<ConsentForm[]>({
     queryKey: ["/api/consent-forms"],
-    queryFn: () => fetch("/api/consent-forms").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/consent-forms", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch forms");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
   const { data: patientList } = useQuery<{ patients: Patient[] }>({
     queryKey: ["/api/patients", patientSearch],
-    queryFn: () => fetch(`/api/patients?search=${encodeURIComponent(patientSearch)}`).then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/patients?search=${encodeURIComponent(patientSearch)}`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch patients");
+      return r.json();
+    },
     enabled: patientSearch.length >= 2,
   });
   const { data: doctors } = useQuery<Doctor[]>({
     queryKey: ["/api/doctors"],
-    queryFn: () => fetch("/api/doctors").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/doctors", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch doctors");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
   const { data: entities } = useQuery<Entity[]>({
     queryKey: ["/api/entities"],
-    queryFn: () => fetch("/api/entities").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/entities", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch entities");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
-  const selectedPatient = (patientList?.patients || []).find((p) => p.id === Number(pickedPatientId));
-  const selectedEntity = (entities || []).find((e) => e.id === Number(entityId));
-  const filtered = useMemo(() => (forms || []).filter((f) => filter === "all" || f.formType === filter), [forms, filter]);
+  const safePatients = Array.isArray(patientList?.patients) ? patientList.patients : [];
+  const safeDoctors = Array.isArray(doctors) ? doctors : [];
+  const safeEntities = Array.isArray(entities) ? entities : [];
+  const safeForms = Array.isArray(forms) ? forms : [];
+
+  const selectedPatient = safePatients.find((p) => p.id === Number(pickedPatientId));
+  const selectedEntity = safeEntities.find((e) => e.id === Number(entityId));
+  const filtered = useMemo(() => safeForms.filter((f) => filter === "all" || f.formType === filter), [safeForms, filter]);
 
   const create = useMutation({
     mutationFn: async () => {
@@ -112,7 +138,7 @@ export default function ConsentFormsPage() {
       };
       const body = substitute(pickedTemplate.body, fullVars);
       const r = await fetch("/api/consent-forms", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
         body: JSON.stringify({
           formType: pickedTemplate.type,
           title: pickedTemplate.title,
@@ -139,7 +165,7 @@ export default function ConsentFormsPage() {
   const sign = useMutation({
     mutationFn: async ({ id, witnessName }: { id: number; witnessName: string }) => {
       const r = await fetch(`/api/consent-forms/${id}`, {
-        method: "PUT", headers: { "Content-Type": "application/json" },
+        method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include",
         body: JSON.stringify({ patientSigned: true, witnessName, status: "signed" }),
       });
       if (!r.ok) throw new Error("Failed");
@@ -212,9 +238,9 @@ export default function ConsentFormsPage() {
   };
 
   const stats = {
-    total: (forms || []).length,
-    signed: (forms || []).filter((f) => f.patientSigned).length,
-    draft: (forms || []).filter((f) => f.status === "draft").length,
+    total: safeForms.length,
+    signed: safeForms.filter((f) => f.patientSigned).length,
+    draft: safeForms.filter((f) => f.status === "draft").length,
   };
 
   return (
@@ -295,6 +321,39 @@ export default function ConsentFormsPage() {
               ))}
             </TableBody>
           </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            Consent Form Scans & Documents
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="bg-rose-50 dark:bg-rose-950/20 p-3 rounded-lg border border-rose-200">
+            <p className="text-xs text-muted-foreground mb-3">
+              Upload signed consent form scans, witness acknowledgments, and related medico-legal documents for audit and compliance.
+            </p>
+            <DocumentUpload
+              category="Consent"
+              patientId={0}
+              module="Billing"
+              department="Compliance"
+              description="Signed consent form or medico-legal document"
+              tags={["consent", "medico-legal", "signed"]}
+              multiple={true}
+            />
+          </div>
+
+          <DocumentIntegration
+            patientId={0}
+            module="Billing"
+            title="All Consent Documents"
+            showUpload={false}
+            maxDocuments={40}
+          />
         </CardContent>
       </Card>
 

@@ -18,7 +18,7 @@ export default function PatientHistoryPage() {
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const { data: patientsData } = useListPatients({});
-  const patients = patientsData?.patients || [];
+  const patients = Array.isArray(patientsData?.patients) ? patientsData.patients : [];
   const matched = search
     ? patients.filter((p: any) =>
         p.name?.toLowerCase().includes(search.toLowerCase()) ||

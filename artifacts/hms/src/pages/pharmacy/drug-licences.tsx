@@ -26,8 +26,8 @@ export default function DrugLicencesPage() {
   useEffect(() => { load(); }, []);
   async function load() {
     const [l, a] = await Promise.all([
-      fetch("/api/pharmacy/drug-licences", { credentials: "include" }).then(r => r.json()),
-      fetch("/api/pharmacy/drug-licences/alerts", { credentials: "include" }).then(r => r.json()),
+      (async () => { const r = await fetch("/api/pharmacy/drug-licences", { credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); })(),
+      (async () => { const r = await fetch("/api/pharmacy/drug-licences/alerts", { credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); })(),
     ]);
     setList(Array.isArray(l) ? l : []);
     setAlerts(a || {});

@@ -25,28 +25,52 @@ export default function RateContracts() {
 
   const { data: contracts = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/pharmacy/rate-contracts"],
-    queryFn: () => fetch("/api/pharmacy/rate-contracts").then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/pharmacy/rate-contracts", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch rate contracts");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
   const { data: vendors = [] } = useQuery<any[]>({
     queryKey: ["/api/vendors"],
-    queryFn: () => fetch("/api/vendors?limit=200").then(r => r.json()).catch(() => []),
+    queryFn: async () => {
+      const r = await fetch("/api/vendors?limit=200", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch vendors");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
   const { data: contractItems = [] } = useQuery<any[]>({
     queryKey: ["/api/pharmacy/rate-contracts/items", selectedContract?.id],
-    queryFn: () => fetch(`/api/pharmacy/rate-contracts/${selectedContract!.id}/items`).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/pharmacy/rate-contracts/${selectedContract!.id}/items`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch contract items");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
     enabled: !!selectedContract,
   });
 
   const { data: violations = [] } = useQuery<any[]>({
     queryKey: ["/api/pharmacy/rate-contracts/violations"],
-    queryFn: () => fetch("/api/pharmacy/rate-contracts/violations").then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/pharmacy/rate-contracts/violations", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch violations");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
     enabled: tab === "violations",
   });
 
   const saveMutation = useMutation({
-    mutationFn: (data: any) => fetch("/api/pharmacy/rate-contracts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then(async r => { const j = await r.json(); if (!r.ok) throw new Error(j.error); return j; }),
+    mutationFn: async (data: any) => {
+      const r = await fetch("/api/pharmacy/rate-contracts", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(data) });
+      if (!r.ok) throw new Error((await r.json()).error || "Failed to create rate contract");
+      return r.json();
+    },
     onSuccess: () => { toast.success("Rate contract created"); qc.invalidateQueries({ queryKey: ["/api/pharmacy/rate-contracts"] }); setShowNew(false); },
     onError: (e: any) => toast.error(e.message),
   });

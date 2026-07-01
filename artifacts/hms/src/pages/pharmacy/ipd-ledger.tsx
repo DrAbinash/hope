@@ -17,24 +17,27 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 async function fetchAdmissions() {
-  const r = await fetch("/api/ipd/admissions?status=admitted&limit=100");
+  const r = await fetch("/api/ipd/admissions?status=admitted&limit=100", { credentials: "include" });
   if (!r.ok) return [];
-  return r.json();
+  const data = await r.json();
+  return Array.isArray(data) ? data : [];
 }
 async function fetchIpdIssues(ipdAdmissionId: string) {
-  const r = await fetch(`/api/pharmacy/ipd-issues?ipdAdmissionId=${ipdAdmissionId}`);
+  const r = await fetch(`/api/pharmacy/ipd-issues?ipdAdmissionId=${ipdAdmissionId}`, { credentials: "include" });
   if (!r.ok) throw new Error("Failed");
-  return r.json();
+  const data = await r.json();
+  return Array.isArray(data) ? data : [];
 }
 async function fetchPendingAmount(ipdAdmissionId: string) {
-  const r = await fetch(`/api/pharmacy/ipd-issues/pending-amount?ipdAdmissionId=${ipdAdmissionId}`);
+  const r = await fetch(`/api/pharmacy/ipd-issues/pending-amount?ipdAdmissionId=${ipdAdmissionId}`, { credentials: "include" });
   if (!r.ok) return { pendingAmount: 0, issueCount: 0 };
   return r.json();
 }
 async function fetchMedicines() {
-  const r = await fetch("/api/pharmacy/medicines?limit=500");
+  const r = await fetch("/api/pharmacy/medicines?limit=500", { credentials: "include" });
   if (!r.ok) return [];
-  return r.json();
+  const data = await r.json();
+  return Array.isArray(data) ? data : [];
 }
 
 export default function IpdMedicineLedger() {
@@ -48,11 +51,14 @@ export default function IpdMedicineLedger() {
   const { data: issues = [], isLoading } = useQuery({ queryKey: ["ipd-issues", selectedAdm], queryFn: () => fetchIpdIssues(selectedAdm), enabled: !!selectedAdm });
   const { data: pendingInfo } = useQuery({ queryKey: ["ipd-pending", selectedAdm], queryFn: () => fetchPendingAmount(selectedAdm), enabled: !!selectedAdm });
   const { data: medicines = [] } = useQuery({ queryKey: ["medicines-list"], queryFn: fetchMedicines });
+  const safeAdmissions = Array.isArray(admissions) ? admissions : [];
+  const safeIssues = Array.isArray(issues) ? issues : [];
+  const safeMedicines = Array.isArray(medicines) ? medicines : [];
 
   const addIssueMutation = useMutation({
     mutationFn: async (payload: any) => {
-      const adm = (admissions as any[]).find((a: any) => String(a.id) === selectedAdm);
-      const r = await fetch("/api/pharmacy/ipd-issues", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, ipdAdmissionId: Number(selectedAdm), patientId: adm?.patientId }) });
+      const adm = safeAdmissions.find((a: any) => String(a.id) === selectedAdm);
+      const r = await fetch("/api/pharmacy/ipd-issues", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ...payload, ipdAdmissionId: Number(selectedAdm), patientId: adm?.patientId }) });
       if (!r.ok) { const j = await r.json(); throw new Error(j.error); }
       return r.json();
     },
@@ -61,7 +67,7 @@ export default function IpdMedicineLedger() {
   });
 
   const postBillMutation = useMutation({
-    mutationFn: async (id: number) => { const r = await fetch(`/api/pharmacy/ipd-issues/${id}/post-to-bill`, { method: "PUT" }); if (!r.ok) throw new Error("Failed"); return r.json(); },
+    mutationFn: async (id: number) => { const r = await fetch(`/api/pharmacy/ipd-issues/${id}/post-to-bill`, { method: "PUT", credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); },
     onSuccess: () => { toast.success("Posted to bill"); qc.invalidateQueries({ queryKey: ["ipd-issues", selectedAdm] }); qc.invalidateQueries({ queryKey: ["ipd-pending", selectedAdm] }); },
   });
 
@@ -70,7 +76,7 @@ export default function IpdMedicineLedger() {
       const l = [...prev];
       l[idx] = { ...l[idx], [field]: value };
       if (field === "medicineId") {
-        const med = (medicines as any[]).find((m: any) => String(m.id) === value);
+        const med = safeMedicines.find((m: any) => String(m.id) === value);
         if (med) { l[idx].medicineName = med.name; l[idx].rate = String(med.saleRate ?? 0); l[idx].gstPercent = String(med.gstPercent ?? 12); }
       }
       if (["quantity", "rate", "gstPercent"].includes(field)) {
@@ -93,7 +99,7 @@ export default function IpdMedicineLedger() {
     addIssueMutation.mutate({ issueDate, items, notes });
   }
 
-  const selectedAdmObj = (admissions as any[]).find((a: any) => String(a.id) === selectedAdm);
+  const selectedAdmObj = safeAdmissions.find((a: any) => String(a.id) === selectedAdm);
 
   return (
     <div className="space-y-6">
@@ -107,7 +113,7 @@ export default function IpdMedicineLedger() {
           <Select value={selectedAdm} onValueChange={setSelectedAdm}>
             <SelectTrigger><SelectValue placeholder="Choose IPD admission…" /></SelectTrigger>
             <SelectContent className="max-h-60">
-              {(admissions as any[]).map((a: any) => (
+              {safeAdmissions.map((a: any) => (
                 <SelectItem key={a.id} value={String(a.id)}>{a.ipdNo} — {a.patientName} (Bed {a.bedName || a.bedId})</SelectItem>
               ))}
             </SelectContent>
@@ -136,8 +142,8 @@ export default function IpdMedicineLedger() {
               <TableHeader><TableRow><TableHead>Issue No</TableHead><TableHead>Date</TableHead><TableHead>Items</TableHead><TableHead className="text-right">Amount</TableHead><TableHead>Status</TableHead><TableHead>Action</TableHead></TableRow></TableHeader>
               <TableBody>
                 {isLoading ? <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">Loading…</TableCell></TableRow>
-                  : (issues as any[]).length === 0 ? <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">No medicines issued yet</TableCell></TableRow>
-                  : (issues as any[]).map((iss: any) => (
+                  : safeIssues.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">No medicines issued yet</TableCell></TableRow>
+                  : safeIssues.map((iss: any) => (
                     <TableRow key={iss.id}>
                       <TableCell className="font-mono text-xs">{iss.issueNo}</TableCell>
                       <TableCell>{iss.issueDate}</TableCell>
@@ -167,7 +173,7 @@ export default function IpdMedicineLedger() {
                   <Label className="text-xs">Medicine</Label>
                   <Select value={line.medicineId} onValueChange={v => updateLine(idx, "medicineId", v)}>
                     <SelectTrigger className="h-8"><SelectValue placeholder="Select…" /></SelectTrigger>
-                    <SelectContent className="max-h-48">{(medicines as any[]).map((m: any) => <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>)}</SelectContent>
+                    <SelectContent className="max-h-48">{safeMedicines.map((m: any) => <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="col-span-2"><Label className="text-xs">Qty</Label><Input className="h-8" type="number" min={1} value={line.quantity} onChange={e => updateLine(idx, "quantity", parseFloat(e.target.value) || 1)} /></div>

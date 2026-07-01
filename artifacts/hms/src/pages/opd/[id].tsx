@@ -21,6 +21,8 @@ import { VoiceDictate } from "@/components/voice-dictate";
 import { DrugInteractionAlerts } from "@/components/drug-interaction-alerts";
 import { useDebouncedAutosave } from "@/hooks/use-autosave";
 import { useAuth } from "@/lib/auth";
+import { DocumentIntegration } from "@/components/document-integration";
+import { DocumentUpload } from "@/components/document-upload";
 
 interface RxItem {
   medicineId?: number;
@@ -145,6 +147,7 @@ export default function OPDDetail() {
       try {
         const res = await fetch("/api/prescription-safety", {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             patientId: visit?.patientId,
@@ -166,7 +169,7 @@ export default function OPDDetail() {
   const handleGenerateAiDraft = async () => {
     setIsAiLoading(true);
     try {
-      const res = await fetch(`/api/opd/${id}/ai-draft`);
+      const res = await fetch(`/api/opd/${id}/ai-draft`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to compile AI draft");
       const data = await res.json();
 
@@ -265,6 +268,7 @@ export default function OPDDetail() {
     try {
       const res = await fetch(`/api/opd/${id}/convert-to-ipd`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...ipdForm, wardId: parseInt(ipdForm.wardId), bedId: parseInt(ipdForm.bedId), consultantDoctorId: ipdForm.consultantDoctorId ? parseInt(ipdForm.consultantDoctorId) : undefined }),
       });
@@ -1114,6 +1118,41 @@ export default function OPDDetail() {
           </div>
         </CardContent>
       </Card>
+
+      {visit && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Consultation Documents
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="bg-blue-50 dark:bg-blue-950/20 p-3 rounded-lg border border-blue-200">
+              <p className="text-xs text-muted-foreground mb-3">
+                Upload prescription copies, test reports, clinical photographs, and other consultation-related documents.
+              </p>
+              <DocumentUpload
+                category="Prescription"
+                patientId={visit.patientId}
+                module="OPD"
+                department="Consultation"
+                description="OPD consultation document or prescription"
+                tags={["opd", "consultation", `visit-${visit.visitNo}`]}
+                multiple={true}
+              />
+            </div>
+
+            <DocumentIntegration
+              patientId={visit.patientId}
+              module="OPD"
+              title="Consultation Documents"
+              showUpload={false}
+              maxDocuments={15}
+            />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

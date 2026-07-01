@@ -26,8 +26,8 @@ export default function ConsignmentStockPage() {
   useEffect(() => { load(); }, [statusFilter]);
   async function load() {
     const [i, o] = await Promise.all([
-      fetch(`/api/pharmacy/consignment?status=${statusFilter}`, { credentials: "include" }).then(r => r.json()),
-      fetch("/api/pharmacy/consignment/outstanding", { credentials: "include" }).then(r => r.json()),
+      (async () => { const r = await fetch(`/api/pharmacy/consignment?status=${statusFilter}`, { credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); })(),
+      (async () => { const r = await fetch("/api/pharmacy/consignment/outstanding", { credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); })(),
     ]);
     setItems(Array.isArray(i) ? i : []);
     setOutstanding(Array.isArray(o) ? o : []);

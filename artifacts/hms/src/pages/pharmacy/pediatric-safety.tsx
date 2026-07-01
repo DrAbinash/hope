@@ -55,34 +55,61 @@ export default function PediatricSafety() {
 
   const { data: medicines = [] } = useQuery<any[]>({
     queryKey: ["/api/pharmacy/medicines"],
-    queryFn: () => fetch("/api/pharmacy/medicines?limit=500").then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/pharmacy/medicines?limit=500", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch medicines");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
   const { data: rules = [], isLoading } = useQuery<DoseRule[]>({
     queryKey: ["/api/pharmacy/pediatric-doses"],
-    queryFn: () => fetch("/api/pharmacy/pediatric-doses").then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/pharmacy/pediatric-doses", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch dose rules");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
     enabled: tab === "master",
   });
 
   const { data: overrides = [] } = useQuery<any[]>({
     queryKey: ["/api/pharmacy/pediatric-doses/overrides"],
-    queryFn: () => fetch("/api/pharmacy/pediatric-doses/overrides").then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/pharmacy/pediatric-doses/overrides", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch overrides");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
     enabled: tab === "overrides",
   });
 
   const checkMutation = useMutation({
-    mutationFn: (data: any) => fetch("/api/pharmacy/pediatric-doses/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then(r => r.json()),
+    mutationFn: async (data: any) => {
+      const r = await fetch("/api/pharmacy/pediatric-doses/check", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(data) });
+      if (!r.ok) throw new Error("Failed to check dose");
+      return r.json();
+    },
     onSuccess: (res) => { setDoseResult(res); if (res.requires_override) setOverrideDialog(true); },
   });
 
   const saveMutation = useMutation({
-    mutationFn: (data: any) => fetch("/api/pharmacy/pediatric-doses", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then(r => r.json()),
+    mutationFn: async (data: any) => {
+      const r = await fetch("/api/pharmacy/pediatric-doses", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(data) });
+      if (!r.ok) throw new Error("Failed to save dose rule");
+      return r.json();
+    },
     onSuccess: () => { toast.success("Pediatric dose rule saved"); qc.invalidateQueries({ queryKey: ["/api/pharmacy/pediatric-doses"] }); setShowNewRule(false); },
     onError: (e: any) => toast.error(e.message),
   });
 
   const overrideMutation = useMutation({
-    mutationFn: (data: any) => fetch("/api/pharmacy/pediatric-doses/override", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then(r => r.json()),
+    mutationFn: async (data: any) => {
+      const r = await fetch("/api/pharmacy/pediatric-doses/override", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(data) });
+      if (!r.ok) throw new Error("Failed to record override");
+      return r.json();
+    },
     onSuccess: () => { toast.success("Override recorded — proceed with caution"); setOverrideDialog(false); },
   });
 

@@ -58,7 +58,7 @@ export default function AccountingPage() {
   async function exportTally() {
     setExporting(true);
     try {
-      const res = await fetch(`/api/accounting/tally-export?fromDate=${fromDate}&toDate=${toDate}`);
+      const res = await fetch(`/api/accounting/tally-export?fromDate=${fromDate}&toDate=${toDate}`, { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       const blob = new Blob([data.xmlContent], { type: "text/xml" });

@@ -73,21 +73,37 @@ export default function CollectionReportPage() {
 
   const { data: daily, isLoading: dl } = useQuery<{ rows: DailyRow[] }>({
     queryKey: ["/api/reports/daily-collection", from, to],
-    queryFn: () => fetch(`/api/reports/daily-collection?from=${from}&to=${to}`).then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/reports/daily-collection?from=${from}&to=${to}`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch daily collection");
+      const data = await r.json();
+      return { rows: Array.isArray(data?.rows) ? data.rows : [] };
+    },
   });
   const { data: byUser, isLoading: ul } = useQuery<{ rows: UserRow[] }>({
     queryKey: ["/api/reports/user-collection", from, to],
-    queryFn: () => fetch(`/api/reports/user-collection?from=${from}&to=${to}`).then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/reports/user-collection?from=${from}&to=${to}`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch user collection");
+      const data = await r.json();
+      return { rows: Array.isArray(data?.rows) ? data.rows : [] };
+    },
   });
   const { data: entities } = useQuery<Entity[]>({
     queryKey: ["/api/entities"],
-    queryFn: () => fetch("/api/entities").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/entities", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch entities");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
-  const entName = (id: number | null) => entities?.find((e) => e.id === id)?.name || "—";
+  const safeEntities = Array.isArray(entities) ? entities : [];
+  const entName = (id: number | null) => safeEntities.find((e) => e.id === id)?.name || "—";
 
-  const dailyRows = daily?.rows || [];
-  const userRows = byUser?.rows || [];
+  const dailyRows = Array.isArray(daily?.rows) ? daily.rows : [];
+  const userRows = Array.isArray(byUser?.rows) ? byUser.rows : [];
 
   const totalCollected = dailyRows.reduce((s, r) => s + Number(r.collected), 0);
   const totalBilled = dailyRows.reduce((s, r) => s + Number(r.billed), 0);

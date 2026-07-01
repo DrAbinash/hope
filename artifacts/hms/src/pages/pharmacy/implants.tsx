@@ -12,20 +12,22 @@ import { Plus, Search, Shield } from "lucide-react";
 
 async function fetchImplants(patientId?: string) {
   const p = patientId ? `?patientId=${patientId}` : "";
-  const r = await fetch(`/api/pharmacy/implants${p}`);
+  const r = await fetch(`/api/pharmacy/implants${p}`, { credentials: "include" });
   if (!r.ok) throw new Error("Failed");
-  return r.json();
+  const data = await r.json();
+  return Array.isArray(data) ? data : [];
 }
 async function fetchMedicines() {
-  const r = await fetch("/api/pharmacy/medicines?limit=500");
+  const r = await fetch("/api/pharmacy/medicines?limit=500", { credentials: "include" });
   if (!r.ok) return [];
-  return r.json();
+  const data = await r.json();
+  return Array.isArray(data) ? data : [];
 }
 async function fetchPatients(q: string) {
-  const r = await fetch(`/api/patients?search=${encodeURIComponent(q)}&limit=20`);
+  const r = await fetch(`/api/patients?search=${encodeURIComponent(q)}&limit=20`, { credentials: "include" });
   if (!r.ok) return [];
   const j = await r.json();
-  return Array.isArray(j) ? j : (j.data ?? []);
+  return Array.isArray(j) ? j : (Array.isArray(j?.patients) ? j.patients : []);
 }
 
 const SITES = ["Left Knee", "Right Knee", "Left Hip", "Right Hip", "Lumbar Spine", "Cervical Spine", "Left Shoulder", "Right Shoulder", "Cardiac", "Abdominal", "Other"];
@@ -33,7 +35,7 @@ const SITES = ["Left Knee", "Right Knee", "Left Hip", "Right Hip", "Lumbar Spine
 export default function ImplantTrackingPage() {
   const qc = useQueryClient();
   const [patientSearch, setPatientSearch] = useState("");
-  const [filterPatientId, setFilterPatientId] = useState("");
+  const [filterPatientId, setFilterPatientId] = useState("all");
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({
     medicineId: "", medicineName: "", serialNo: "", batchNo: "", expiryDate: "",
@@ -43,7 +45,7 @@ export default function ImplantTrackingPage() {
 
   const { data: implants = [], isLoading } = useQuery({
     queryKey: ["implants", filterPatientId],
-    queryFn: () => fetchImplants(filterPatientId || undefined),
+    queryFn: () => fetchImplants(filterPatientId !== "all" ? filterPatientId : undefined),
   });
   const { data: medicines = [] } = useQuery({ queryKey: ["medicines-list"], queryFn: fetchMedicines });
   const { data: patients = [] } = useQuery({
@@ -52,9 +54,13 @@ export default function ImplantTrackingPage() {
     enabled: patientSearch.length >= 2,
   });
 
+  const safeImplants = Array.isArray(implants) ? implants : [];
+  const safeMedicines = Array.isArray(medicines) ? medicines : [];
+  const safePatients = Array.isArray(patients) ? patients : [];
+
   const addImplant = useMutation({
     mutationFn: async (d: any) => {
-      const r = await fetch("/api/pharmacy/implants", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) });
+      const r = await fetch("/api/pharmacy/implants", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(d) });
       if (!r.ok) { const j = await r.json(); throw new Error(j.error); }
       return r.json();
     },
@@ -97,12 +103,12 @@ export default function ImplantTrackingPage() {
             </TableHeader>
             <TableBody>
               {isLoading ? <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
-                : (implants as any[]).length === 0 ? (
+                : safeImplants.length === 0 ? (
                   <TableRow><TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
                     <Shield className="w-10 h-10 mx-auto mb-2 opacity-30" />
                     <p>No implants recorded yet</p>
                   </TableCell></TableRow>
-                ) : (implants as any[]).map((imp: any) => (
+                ) : safeImplants.map((imp: any) => (
                   <TableRow key={imp.id}>
                     <TableCell className="font-medium">{imp.medicineName}</TableCell>
                     <TableCell className="font-mono text-xs">{imp.serialNo || "—"}</TableCell>
@@ -126,9 +132,9 @@ export default function ImplantTrackingPage() {
           <div className="grid grid-cols-2 gap-4 max-h-[65vh] overflow-y-auto">
             <div className="col-span-2">
               <Label>Medicine / Implant *</Label>
-              <Select value={form.medicineId} onValueChange={v => { const m = (medicines as any[]).find((x: any) => String(x.id) === v); setForm(f => ({ ...f, medicineId: v, medicineName: m?.name ?? "" })); }}>
+              <Select value={form.medicineId} onValueChange={v => { const m = safeMedicines.find((x: any) => String(x.id) === v); setForm(f => ({ ...f, medicineId: v, medicineName: m?.name ?? "" })); }}>
                 <SelectTrigger><SelectValue placeholder="Select implant medicine" /></SelectTrigger>
-                <SelectContent className="max-h-48">{(medicines as any[]).map((m: any) => <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>)}</SelectContent>
+                <SelectContent className="max-h-48">{safeMedicines.map((m: any) => <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div><Label>Serial Number</Label><Input value={form.serialNo} onChange={e => setForm(f => ({ ...f, serialNo: e.target.value }))} placeholder="Device serial no." /></div>
@@ -141,9 +147,9 @@ export default function ImplantTrackingPage() {
                 value={patientSearch}
                 onChange={e => setPatientSearch(e.target.value)}
               />
-              {patients.length > 0 && !form.patientId && (
+              {safePatients.length > 0 && !form.patientId && (
                 <div className="border rounded mt-1 max-h-32 overflow-y-auto">
-                  {(patients as any[]).map((p: any) => (
+                  {safePatients.map((p: any) => (
                     <div key={p.id} className="px-3 py-1.5 hover:bg-muted cursor-pointer text-sm" onClick={() => { setForm(f => ({ ...f, patientId: String(p.id) })); setPatientSearch(p.name); }}>
                       {p.name} — {p.phone || p.uhid}
                     </div>

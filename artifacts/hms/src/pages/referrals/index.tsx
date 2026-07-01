@@ -21,6 +21,9 @@ export default function ReferralsHub() {
     },
   });
 
+  const safeDoctors = Array.isArray(docs?.doctors) ? docs.doctors : [];
+  const summaryData = summary?.summary || { total: 0, pending: 0, paid: 0, count: 0 };
+
   const tiles = [
     { href: "/referrals/doctors", title: "Referral Doctors", desc: "Manage referral doctors & payment configuration", icon: Share2, color: "bg-blue-50 text-blue-700" },
     { href: "/referrals/payouts", title: "Referral Shares", desc: "Record and pay out referral shares", icon: Wallet, color: "bg-emerald-50 text-emerald-700" },
@@ -37,10 +40,10 @@ export default function ReferralsHub() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Active Referral Doctors</div><div className="text-2xl font-semibold mt-1">{(docs?.doctors || []).filter((d: any) => d.isActive).length}</div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Total Shares (records)</div><div className="text-2xl font-semibold mt-1">{summary?.summary?.count ?? 0}</div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Pending Payout</div><div className="text-2xl font-semibold mt-1 text-amber-700">₹{(summary?.summary?.pending ?? 0).toLocaleString("en-IN")}</div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Paid (Total)</div><div className="text-2xl font-semibold mt-1 text-emerald-700">₹{(summary?.summary?.paid ?? 0).toLocaleString("en-IN")}</div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Active Referral Doctors</div><div className="text-2xl font-semibold mt-1">{safeDoctors.filter((d: any) => d.isActive).length}</div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Total Shares (records)</div><div className="text-2xl font-semibold mt-1">{summaryData.count}</div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Pending Payout</div><div className="text-2xl font-semibold mt-1 text-amber-700">₹{summaryData.pending.toLocaleString("en-IN")}</div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Paid (Total)</div><div className="text-2xl font-semibold mt-1 text-emerald-700">₹{summaryData.paid.toLocaleString("en-IN")}</div></CardContent></Card>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

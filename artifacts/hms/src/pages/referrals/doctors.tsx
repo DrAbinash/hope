@@ -17,7 +17,8 @@ export default function ReferralDoctorsList() {
       return r.json() as Promise<{ doctors: any[] }>;
     },
   });
-  const rows = (data?.doctors || []).filter((d) =>
+  const safeDoctors = Array.isArray(data?.doctors) ? data.doctors : [];
+  const rows = safeDoctors.filter((d) =>
     !search || d.name?.toLowerCase().includes(search.toLowerCase()) || d.phone?.includes(search) || d.specialization?.toLowerCase().includes(search.toLowerCase())
   );
 

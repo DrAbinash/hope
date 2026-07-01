@@ -15,8 +15,8 @@ const STATUS_COLORS: Record<string, string> = {
   completed: "bg-green-100 text-green-700", approved: "bg-purple-100 text-purple-700",
 };
 
-async function fetchSessions() { const r = await fetch("/api/pharmacy/stock-verification"); if (!r.ok) throw new Error("Failed"); return r.json(); }
-async function fetchItems(sessionId: number) { const r = await fetch(`/api/pharmacy/stock-verification/${sessionId}/items`); if (!r.ok) throw new Error("Failed"); return r.json(); }
+async function fetchSessions() { const r = await fetch("/api/pharmacy/stock-verification", { credentials: "include" }); if (!r.ok) throw new Error("Failed"); const data = await r.json(); return Array.isArray(data) ? data : []; }
+async function fetchItems(sessionId: number) { const r = await fetch(`/api/pharmacy/stock-verification/${sessionId}/items`, { credentials: "include" }); if (!r.ok) throw new Error("Failed"); const data = await r.json(); return Array.isArray(data) ? data : []; }
 
 export default function StockVerificationPage() {
   const qc = useQueryClient();
@@ -34,16 +34,18 @@ export default function StockVerificationPage() {
     queryFn: () => fetchItems(activeSession.id),
     enabled: !!activeSession,
   });
+  const safeSessions = Array.isArray(sessions) ? sessions : [];
+  const safeItems = Array.isArray(items) ? items : [];
 
   const createSession = useMutation({
-    mutationFn: async () => { const r = await fetch("/api/pharmacy/stock-verification", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ verificationDate: newDate }) }); if (!r.ok) throw new Error("Failed"); return r.json(); },
+    mutationFn: async () => { const r = await fetch("/api/pharmacy/stock-verification", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ verificationDate: newDate }) }); if (!r.ok) throw new Error("Failed"); return r.json(); },
     onSuccess: (s) => { toast.success("Verification session created"); qc.invalidateQueries({ queryKey: ["stock-verifications"] }); setActiveSession(s); setShowNew(false); },
     onError: () => toast.error("Failed to create session"),
   });
 
   const updateItem = useMutation({
     mutationFn: async ({ itemId, physicalQty, reason }: any) => {
-      const r = await fetch(`/api/pharmacy/stock-verification/${activeSession.id}/items/${itemId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ physicalQty: parseInt(physicalQty), reason }) });
+      const r = await fetch(`/api/pharmacy/stock-verification/${activeSession.id}/items/${itemId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ physicalQty: parseInt(physicalQty), reason }) });
       if (!r.ok) throw new Error("Failed");
       return r.json();
     },
@@ -52,17 +54,17 @@ export default function StockVerificationPage() {
   });
 
   const completeSession = useMutation({
-    mutationFn: async () => { const r = await fetch(`/api/pharmacy/stock-verification/${activeSession.id}/complete`, { method: "PUT" }); if (!r.ok) throw new Error("Failed"); return r.json(); },
+    mutationFn: async () => { const r = await fetch(`/api/pharmacy/stock-verification/${activeSession.id}/complete`, { method: "PUT", credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); },
     onSuccess: (s) => { toast.success("Verification completed"); qc.invalidateQueries({ queryKey: ["stock-verifications"] }); setActiveSession(s); },
     onError: () => toast.error("Failed"),
   });
 
-  const counted = (items as any[]).filter((i: any) => i.physicalQty !== null && i.physicalQty !== undefined).length;
-  const totalVariance = (items as any[]).reduce((s, i) => s + parseFloat(i.varianceValue ?? "0"), 0);
-  const surplusItems = (items as any[]).filter((i: any) => (i.variance ?? 0) > 0);
-  const shortageItems = (items as any[]).filter((i: any) => (i.variance ?? 0) < 0);
+  const counted = safeItems.filter((i: any) => i.physicalQty !== null && i.physicalQty !== undefined).length;
+  const totalVariance = safeItems.reduce((s, i) => s + parseFloat(i.varianceValue ?? "0"), 0);
+  const surplusItems = safeItems.filter((i: any) => (i.variance ?? 0) > 0);
+  const shortageItems = safeItems.filter((i: any) => (i.variance ?? 0) < 0);
 
-  const filteredItems = (items as any[]).filter((i: any) => !search || i.medicineName.toLowerCase().includes(search.toLowerCase()));
+  const filteredItems = safeItems.filter((i: any) => !search || i.medicineName.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="space-y-6">
@@ -75,7 +77,7 @@ export default function StockVerificationPage() {
         {/* Sessions list */}
         <div className="lg:col-span-1 space-y-2">
           <p className="text-xs font-semibold text-muted-foreground uppercase">Sessions</p>
-          {(sessions as any[]).length === 0 ? <p className="text-sm text-muted-foreground">No sessions yet</p> : (sessions as any[]).map((s: any) => (
+          {safeSessions.length === 0 ? <p className="text-sm text-muted-foreground">No sessions yet</p> : safeSessions.map((s: any) => (
             <button key={s.id} onClick={() => setActiveSession(s)} className={`w-full text-left p-3 rounded-lg border transition-colors ${activeSession?.id === s.id ? "border-primary bg-primary/5" : "hover:bg-muted"}`}>
               <div className="flex items-center justify-between">
                 <span className="text-xs font-mono">{s.sessionNo}</span>
@@ -92,7 +94,7 @@ export default function StockVerificationPage() {
             <>
               <div className="flex items-center gap-3 flex-wrap">
                 <div className="flex gap-3">
-                  <div className="px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-200 text-sm"><span className="font-semibold text-blue-700">{counted}</span><span className="text-blue-600"> / {items.length} counted</span></div>
+                  <div className="px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-200 text-sm"><span className="font-semibold text-blue-700">{counted}</span><span className="text-blue-600"> / {safeItems.length} counted</span></div>
                   {shortageItems.length > 0 && <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"><TrendingDown className="w-3.5 h-3.5" /><span>{shortageItems.length} short</span></div>}
                   {surplusItems.length > 0 && <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700"><TrendingUp className="w-3.5 h-3.5" /><span>{surplusItems.length} surplus</span></div>}
                   {counted > 0 && <div className={`px-3 py-1.5 rounded-lg text-sm ${totalVariance < 0 ? "bg-red-50 border border-red-200 text-red-700" : "bg-green-50 border border-green-200 text-green-700"}`}>₹{Math.abs(totalVariance).toLocaleString("en-IN", { maximumFractionDigits: 0 })} variance</div>}

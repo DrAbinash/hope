@@ -48,6 +48,31 @@ app.use(
 );
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Public health endpoint (before session middleware) for Docker healthcheck
+app.get("/api/health", async (_req, res) => {
+  try {
+    const { db } = await import("@workspace/db");
+    const { sql } = await import("drizzle-orm");
+    await db.execute(sql`SELECT 1`);
+    res.json({ status: "ok" });
+  } catch {
+    res.status(503).json({ status: "error", detail: "database unreachable" });
+  }
+});
+
+app.get("/api/healthz", async (_req, res) => {
+  try {
+    const { db } = await import("@workspace/db");
+    const { sql } = await import("drizzle-orm");
+    await db.execute(sql`SELECT 1`);
+    res.json({ status: "ok" });
+  } catch {
+    res.status(503).json({ status: "error", detail: "database unreachable" });
+  }
+});
+
+// Session middleware for authenticated endpoints
 app.use(sessionMiddleware);
 
 app.use("/api", router);

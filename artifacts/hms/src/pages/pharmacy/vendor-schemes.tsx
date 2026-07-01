@@ -29,8 +29,8 @@ export default function VendorSchemesPage() {
   useEffect(() => { load(); }, []);
   async function load() {
     const [l, b] = await Promise.all([
-      fetch("/api/pharmacy/vendor-schemes", { credentials: "include" }).then(r => r.json()),
-      fetch(`/api/pharmacy/vendor-schemes/benefits?from=${from}&to=${to}`, { credentials: "include" }).then(r => r.json()),
+      (async () => { const r = await fetch("/api/pharmacy/vendor-schemes", { credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); })(),
+      (async () => { const r = await fetch(`/api/pharmacy/vendor-schemes/benefits?from=${from}&to=${to}`, { credentials: "include" }); if (!r.ok) throw new Error("Failed"); return r.json(); })(),
     ]);
     setList(Array.isArray(l) ? l : []);
     setBenefits(Array.isArray(b) ? b : []);

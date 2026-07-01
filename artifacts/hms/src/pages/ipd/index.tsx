@@ -52,15 +52,29 @@ export default function IPDPage() {
 
   const { data: wards } = useQuery<Ward[]>({
     queryKey: ["/api/wards"],
-    queryFn: () => fetch("/api/wards").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/wards", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch wards");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
   const { data: beds } = useQuery<Bed[]>({
     queryKey: ["/api/beds"],
-    queryFn: () => fetch("/api/beds").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/beds", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch beds");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
   const { data: stay } = useQuery<{ transfers: StayTransfer[]; totalDays: number; totalRent: number }>({
     queryKey: ["/api/ipd/stay", stayFor?.id],
-    queryFn: () => fetch(`/api/ipd/${stayFor.id}/stay`).then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/ipd/${stayFor.id}/stay`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch stay details");
+      return r.json();
+    },
     enabled: !!stayFor,
   });
 
@@ -73,13 +87,13 @@ export default function IPDPage() {
     : admissions;
   const activeCount = admissions.filter((a: any) => a.status === "admitted" || a.status === "emergency").length;
 
-  const availableBedsForWard = (beds || []).filter((b) => b.wardId === Number(tWardId) && b.status === "available");
+  const availableBedsForWard = (Array.isArray(beds) ? beds : []).filter((b) => b.wardId === Number(tWardId) && b.status === "available");
 
   const transfer = useMutation({
     mutationFn: async () => {
       if (!transferFor) throw new Error("No admission");
       const r = await fetch(`/api/ipd/${transferFor.id}/transfer`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ wardId: Number(tWardId), bedId: Number(tBedId), reason: tReason || null }),
       });
       if (!r.ok) throw new Error((await r.json()).error || "Failed");

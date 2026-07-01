@@ -32,6 +32,7 @@ export default function InventoryPage() {
     try {
       const res = await fetch("/api/inventory/items", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, currentStock: parseFloat(form.currentStock), reorderLevel: parseFloat(form.reorderLevel), purchaseRate: parseFloat(form.purchaseRate) || 0 }),
       });

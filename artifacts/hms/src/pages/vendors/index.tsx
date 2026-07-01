@@ -45,11 +45,11 @@ export default function VendorsPage() {
   const [openPayment, setOpenPayment] = useState(false);
   const [payform, setPayform] = useState<any>({ vendorId: 0, purchaseId: "", paymentDate: today, amount: 0, mode: "Bank Transfer", reference: "", notes: "" });
 
-  const { data: vendors } = useQuery<any[]>({ queryKey: ["vendors"], queryFn: () => j("/api/vendors") });
-  const { data: purchases } = useQuery<any[]>({ queryKey: ["vendor-purchases"], queryFn: () => j("/api/vendor-purchases") });
-  const { data: payments } = useQuery<any[]>({ queryKey: ["vendor-payments"], queryFn: () => j("/api/vendor-payments") });
+  const { data: vendors } = useQuery<any[]>({ queryKey: ["vendors"], queryFn: async () => { const d = await j("/api/vendors"); return Array.isArray(d) ? d : []; } });
+  const { data: purchases } = useQuery<any[]>({ queryKey: ["vendor-purchases"], queryFn: async () => { const d = await j("/api/vendor-purchases"); return Array.isArray(d) ? d : []; } });
+  const { data: payments } = useQuery<any[]>({ queryKey: ["vendor-payments"], queryFn: async () => { const d = await j("/api/vendor-payments"); return Array.isArray(d) ? d : []; } });
   const { data: outstanding } = useQuery<any>({ queryKey: ["vendor-outstanding"], queryFn: () => j("/api/vendor-outstanding") });
-  const { data: medicines } = useQuery<any[]>({ queryKey: ["medicines-all"], queryFn: () => j("/api/pharmacy/medicines") });
+  const { data: medicines } = useQuery<any[]>({ queryKey: ["medicines-all"], queryFn: async () => { const d = await j("/api/pharmacy/medicines"); return Array.isArray(d) ? d : []; } });
 
   const saveVendor = useMutation({
     mutationFn: () => editingVendor

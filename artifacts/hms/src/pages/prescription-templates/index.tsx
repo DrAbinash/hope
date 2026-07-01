@@ -45,9 +45,12 @@ export default function PrescriptionTemplatesPage() {
   const { data: templates, isLoading } = useListPrescriptionTemplates(params);
   const { data: doctors } = useListDoctors();
 
+  const safeTemplates = Array.isArray(templates) ? templates : [];
+  const safeDoctors = Array.isArray(doctors) ? doctors : [];
+
   const filtered = search
-    ? (templates || []).filter((t: any) => t.name?.toLowerCase().includes(search.toLowerCase()) || t.diagnosis?.toLowerCase().includes(search.toLowerCase()))
-    : (templates || []);
+    ? safeTemplates.filter((t: any) => t.name?.toLowerCase().includes(search.toLowerCase()) || t.diagnosis?.toLowerCase().includes(search.toLowerCase()))
+    : safeTemplates;
 
   function openNew() {
     setEditId(null);
@@ -164,7 +167,7 @@ export default function PrescriptionTemplatesPage() {
                   <Select value={form.doctorId} onValueChange={v => setForm(f => ({ ...f, doctorId: v }))}>
                     <SelectTrigger><SelectValue placeholder="All doctors" /></SelectTrigger>
                     <SelectContent>
-                      {(doctors || []).map((d: any) => (
+                      {safeDoctors.map((d: any) => (
                         <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>
                       ))}
                     </SelectContent>

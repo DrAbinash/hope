@@ -42,25 +42,25 @@ export default function InsuranceBilling() {
 
   const { data: claims = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/pharmacy/tpa-claims", filters],
-    queryFn: () => fetch(`/api/pharmacy/tpa-claims?${params}`).then(r => r.json()),
+    queryFn: async () => { const r = await fetch(`/api/pharmacy/tpa-claims?${params}`, { credentials: "include" }); if (!r.ok) throw new Error("Failed"); const data = await r.json(); return Array.isArray(data) ? data : []; },
   });
 
   const { data: outstanding = [] } = useQuery<any[]>({
     queryKey: ["/api/pharmacy/tpa-reports/outstanding"],
-    queryFn: () => fetch("/api/pharmacy/tpa-reports/outstanding").then(r => r.json()),
+    queryFn: async () => { const r = await fetch("/api/pharmacy/tpa-reports/outstanding", { credentials: "include" }); if (!r.ok) throw new Error("Failed"); const data = await r.json(); return Array.isArray(data) ? data : []; },
     enabled: tab === "outstanding",
   });
 
   const saveMutation = useMutation({
-    mutationFn: (data: any) => fetch("/api/pharmacy/tpa-claims", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then(r => r.json()),
+    mutationFn: async (data: any) => { const r = await fetch("/api/pharmacy/tpa-claims", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }); if (!r.ok) throw new Error("Failed"); return r.json(); },
     onSuccess: () => { toast.success("TPA claim created"); qc.invalidateQueries({ queryKey: ["/api/pharmacy/tpa-claims"] }); setShowNew(false); },
-    onError: (e: any) => toast.error(e.message),
+    onError: () => toast.error("Failed"),
   });
 
   const approveMutation = useMutation({
-    mutationFn: (data: any) => fetch(`/api/pharmacy/tpa-claims/${data.id}/approve`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then(r => r.json()),
+    mutationFn: async (data: any) => { const r = await fetch(`/api/pharmacy/tpa-claims/${data.id}/approve`, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }); if (!r.ok) throw new Error("Failed"); return r.json(); },
     onSuccess: () => { toast.success("Claim status updated"); qc.invalidateQueries({ queryKey: ["/api/pharmacy/tpa-claims"] }); setApproveDialog(null); },
-    onError: (e: any) => toast.error(e.message),
+    onError: () => toast.error("Failed"),
   });
 
   const totals = claims.reduce((acc, c: any) => ({

@@ -27,11 +27,15 @@ export default function StockHeatmap() {
 
   const { data, isLoading, refetch } = useQuery<{ summary: any; items: any[] }>({
     queryKey: ["/api/pharmacy/stock-heatmap", filter.category],
-    queryFn: () => fetch(`/api/pharmacy/stock-heatmap?${params}`).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/pharmacy/stock-heatmap?${params}`, { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch stock heatmap");
+      return r.json();
+    },
     refetchInterval: 60000,
   });
 
-  const items = (data?.items ?? []).filter(x => !filter.heat_status || x.heat_status === filter.heat_status);
+  const items = (Array.isArray(data?.items) ? data.items : []).filter(x => !filter.heat_status || x.heat_status === filter.heat_status);
   const summary = data?.summary;
 
   const categories = [...new Set((data?.items ?? []).map((x: any) => x.category).filter(Boolean))].sort();

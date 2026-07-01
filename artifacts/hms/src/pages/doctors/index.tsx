@@ -37,8 +37,8 @@ export default function DoctorsPage() {
   const { data: doctors, isLoading } = useListDoctors();
 
   const filtered = search
-    ? (doctors || []).filter((d: any) => d.name?.toLowerCase().includes(search.toLowerCase()) || d.specialization?.toLowerCase().includes(search.toLowerCase()))
-    : (doctors || []);
+    ? (Array.isArray(doctors) ? doctors : []).filter((d: any) => d.name?.toLowerCase().includes(search.toLowerCase()) || d.specialization?.toLowerCase().includes(search.toLowerCase()))
+    : (Array.isArray(doctors) ? doctors : []);
 
   function startAdd() {
     setEditingId(null);

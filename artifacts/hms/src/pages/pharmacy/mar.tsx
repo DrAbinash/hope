@@ -20,21 +20,23 @@ const STATUS_META: Record<string, { color: string; icon: React.ReactNode }> = {
 };
 
 async function fetchAdmissions() {
-  const r = await fetch("/api/ipd/admissions?status=admitted&limit=100");
+  const r = await fetch("/api/ipd/admissions?status=admitted&limit=100", { credentials: "include" });
   if (!r.ok) return [];
   const j = await r.json();
   return Array.isArray(j) ? j : (j.data ?? []);
 }
 async function fetchMAR(ipdAdmissionId: string, date: string) {
   const params = new URLSearchParams({ ipdAdmissionId, date });
-  const r = await fetch(`/api/pharmacy/mar?${params}`);
+  const r = await fetch(`/api/pharmacy/mar?${params}`, { credentials: "include" });
   if (!r.ok) throw new Error("Failed");
-  return r.json();
+  const data = await r.json();
+  return Array.isArray(data) ? data : [];
 }
 async function fetchMedicines() {
-  const r = await fetch("/api/pharmacy/medicines?limit=500");
+  const r = await fetch("/api/pharmacy/medicines?limit=500", { credentials: "include" });
   if (!r.ok) return [];
-  return r.json();
+  const data = await r.json();
+  return Array.isArray(data) ? data : [];
 }
 
 const ROUTES = ["oral", "iv", "im", "sc", "topical", "inhaled", "sublingual", "rectal", "nasal"];
@@ -54,11 +56,14 @@ export default function MARPage() {
   const { data: admissions = [] } = useQuery({ queryKey: ["ipd-admissions-mar"], queryFn: fetchAdmissions });
   const { data: records = [], isLoading } = useQuery({ queryKey: ["mar", selectedAdm, date], queryFn: () => fetchMAR(selectedAdm, date), enabled: !!selectedAdm });
   const { data: medicines = [] } = useQuery({ queryKey: ["medicines-list"], queryFn: fetchMedicines });
+  const safeAdmissions = Array.isArray(admissions) ? admissions : [];
+  const safeRecords = Array.isArray(records) ? records : [];
+  const safeMedicines = Array.isArray(medicines) ? medicines : [];
 
   const addMAR = useMutation({
     mutationFn: async (payload: any) => {
-      const adm = (admissions as any[]).find((a: any) => String(a.id) === selectedAdm);
-      const r = await fetch("/api/pharmacy/mar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, ipdAdmissionId: Number(selectedAdm), patientId: adm?.patientId }) });
+      const adm = safeAdmissions.find((a: any) => String(a.id) === selectedAdm);
+      const r = await fetch("/api/pharmacy/mar", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ...payload, ipdAdmissionId: Number(selectedAdm), patientId: adm?.patientId }) });
       if (!r.ok) { const j = await r.json(); throw new Error(j.error); }
       return r.json();
     },
@@ -68,7 +73,7 @@ export default function MARPage() {
 
   const updateMAR = useMutation({
     mutationFn: async ({ id, status, reason }: any) => {
-      const r = await fetch(`/api/pharmacy/mar/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status, reason }) });
+      const r = await fetch(`/api/pharmacy/mar/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ status, reason }) });
       if (!r.ok) throw new Error("Failed");
       return r.json();
     },
@@ -76,8 +81,8 @@ export default function MARPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  const pending = (records as any[]).filter((r: any) => r.status === "pending").length;
-  const missed = (records as any[]).filter((r: any) => r.status === "missed").length;
+  const pending = safeRecords.filter((r: any) => r.status === "pending").length;
+  const missed = safeRecords.filter((r: any) => r.status === "missed").length;
 
   return (
     <div className="space-y-6">
@@ -92,7 +97,7 @@ export default function MARPage() {
           <Select value={selectedAdm} onValueChange={setSelectedAdm}>
             <SelectTrigger><SelectValue placeholder="Choose patient…" /></SelectTrigger>
             <SelectContent className="max-h-60">
-              {(admissions as any[]).map((a: any) => <SelectItem key={a.id} value={String(a.id)}>{a.ipdNo} — {a.patientName}</SelectItem>)}
+              {safeAdmissions.map((a: any) => <SelectItem key={a.id} value={String(a.id)}>{a.ipdNo} — {a.patientName}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -124,8 +129,8 @@ export default function MARPage() {
               </TableHeader>
               <TableBody>
                 {isLoading ? <TableRow><TableCell colSpan={8} className="text-center py-6 text-muted-foreground">Loading…</TableCell></TableRow>
-                  : (records as any[]).length === 0 ? <TableRow><TableCell colSpan={8} className="text-center py-6 text-muted-foreground">No MAR entries for this date</TableCell></TableRow>
-                  : (records as any[]).map((rec: any) => (
+                  : safeRecords.length === 0 ? <TableRow><TableCell colSpan={8} className="text-center py-6 text-muted-foreground">No MAR entries for this date</TableCell></TableRow>
+                  : safeRecords.map((rec: any) => (
                     <TableRow key={rec.id} className={rec.status === "missed" ? "bg-red-50" : rec.status === "given" ? "bg-green-50/40" : ""}>
                       <TableCell className="font-medium">{rec.medicineName}</TableCell>
                       <TableCell className="text-sm">{rec.dose || "—"} / {rec.route || "—"}</TableCell>
@@ -157,9 +162,9 @@ export default function MARPage() {
           <DialogHeader><DialogTitle>Schedule Medication Dose</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div><Label>Medicine *</Label>
-              <Select value={form.medicineId} onValueChange={v => { const m = (medicines as any[]).find((x: any) => String(x.id) === v); setForm(f => ({ ...f, medicineId: v, medicineName: m?.name ?? "" })); }}>
+              <Select value={form.medicineId} onValueChange={v => { const m = safeMedicines.find((x: any) => String(x.id) === v); setForm(f => ({ ...f, medicineId: v, medicineName: m?.name ?? "" })); }}>
                 <SelectTrigger><SelectValue placeholder="Select medicine" /></SelectTrigger>
-                <SelectContent className="max-h-48">{(medicines as any[]).map((m: any) => <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>)}</SelectContent>
+                <SelectContent className="max-h-48">{safeMedicines.map((m: any) => <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">

@@ -40,10 +40,19 @@ export default function IndentsPage() {
 
   const { data: indents } = useQuery<any[]>({
     queryKey: ["indents", tab],
-    queryFn: () => j(`/api/indents${tab !== "all" ? `?status=${tab}` : ""}`),
+    queryFn: async () => {
+      const data = await j(`/api/indents${tab !== "all" ? `?status=${tab}` : ""}`);
+      return Array.isArray(data) ? data : [];
+    },
   });
-  const { data: medicines } = useQuery<any[]>({ queryKey: ["medicines-all"], queryFn: () => j("/api/pharmacy/medicines") });
-  const { data: invItems } = useQuery<any[]>({ queryKey: ["inv-items-all"], queryFn: () => j("/api/inventory/items") });
+  const { data: medicines } = useQuery<any[]>({ queryKey: ["medicines-all"], queryFn: async () => {
+    const data = await j("/api/pharmacy/medicines");
+    return Array.isArray(data) ? data : [];
+  }});
+  const { data: invItems } = useQuery<any[]>({ queryKey: ["inv-items-all"], queryFn: async () => {
+    const data = await j("/api/inventory/items");
+    return Array.isArray(data) ? data : [];
+  }});
 
   const create = useMutation({
     mutationFn: () => j("/api/indents", { method: "POST", body: JSON.stringify(form) }),
@@ -84,12 +93,16 @@ export default function IndentsPage() {
     setNewItem({ itemType: "medicine", itemId: 0, itemName: "", unit: "", requestedQty: 1 });
   };
 
+  const safeMedicines = Array.isArray(medicines) ? medicines : [];
+  const safeInvItems = Array.isArray(invItems) ? invItems : [];
+  const safeIndents = Array.isArray(indents) ? indents : [];
+
   const pickFromList = (val: string) => {
     if (newItem.itemType === "medicine") {
-      const m = (medicines || []).find((x: any) => x.id === parseInt(val));
+      const m = safeMedicines.find((x: any) => x.id === parseInt(val));
       if (m) setNewItem({ ...newItem, itemId: m.id, itemName: m.name, unit: m.unit });
     } else {
-      const i = (invItems || []).find((x: any) => x.id === parseInt(val));
+      const i = safeInvItems.find((x: any) => x.id === parseInt(val));
       if (i) setNewItem({ ...newItem, itemId: i.id, itemName: i.name, unit: i.unit });
     }
   };
@@ -135,7 +148,7 @@ export default function IndentsPage() {
                     <Select value={newItem.itemId ? String(newItem.itemId) : ""} onValueChange={pickFromList}>
                       <SelectTrigger><SelectValue placeholder="Pick item" /></SelectTrigger>
                       <SelectContent>
-                        {(newItem.itemType === "medicine" ? medicines : invItems)?.map((x: any) =>
+                        {(newItem.itemType === "medicine" ? safeMedicines : safeInvItems).map((x: any) =>
                           <SelectItem key={x.id} value={String(x.id)}>{x.name} (stock: {x.stock || x.currentStock})</SelectItem>
                         )}
                       </SelectContent>
@@ -188,16 +201,16 @@ export default function IndentsPage() {
                 <TableHead>Items</TableHead><TableHead>Status</TableHead><TableHead>Created</TableHead><TableHead>Actions</TableHead>
               </TableRow></TableHeader>
               <TableBody>
-                {(indents || []).length === 0 ? (
+                {safeIndents.length === 0 ? (
                   <TableRow><TableCell colSpan={7} className="text-center h-24 text-muted-foreground">No indents.</TableCell></TableRow>
-                ) : (indents || []).map((i: any) => (
+                ) : safeIndents.map((i: any) => (
                   <TableRow key={i.id}>
                     <TableCell className="font-mono text-xs">{i.indentNo}</TableCell>
                     <TableCell>{i.department}</TableCell>
                     <TableCell>{i.requestedBy}</TableCell>
                     <TableCell>
                       <div className="text-xs space-y-0.5">
-                        {(i.items || []).map((it: any) => (
+                        {(Array.isArray(i.items) ? i.items : []).map((it: any) => (
                           <div key={it.id}>{it.itemName} <span className="text-muted-foreground">× {it.requestedQty} {it.unit || ""}</span></div>
                         ))}
                       </div>

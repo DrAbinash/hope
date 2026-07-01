@@ -24,7 +24,12 @@ export default function WardsPage() {
 
   const { data: beds, isLoading: bedsLoading } = useQuery<Bed[]>({
     queryKey: ["/api/beds"],
-    queryFn: () => fetch("/api/beds").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/beds", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to fetch beds");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
   const [selectedBed, setSelectedBed] = useState<Bed | null>(null);
@@ -40,7 +45,8 @@ export default function WardsPage() {
     mutationFn: async () => {
       if (!selectedBed) return;
       // Get the active IPD admission for this bed
-      const admsRes = await fetch("/api/ipd");
+      const admsRes = await fetch("/api/ipd", { credentials: "include" });
+      if (!admsRes.ok) throw new Error("Failed to fetch admissions");
       const admsData = await admsRes.json();
       const admission = admsData.admissions?.find((a: any) => a.bedId === selectedBed.id && a.status === "admitted");
       if (!admission) throw new Error("No active patient admission found in this bed");
@@ -48,6 +54,7 @@ export default function WardsPage() {
       const r = await fetch(`/api/ipd/${admission.id}/transfer`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ wardId: Number(transferTargetWard), bedId: Number(transferTargetBed), reason: "Quick Transfer from Bed Manager" }),
       });
       if (!r.ok) throw new Error((await r.json()).error || "Failed to transfer patient");

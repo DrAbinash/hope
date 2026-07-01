@@ -19,35 +19,39 @@ const STATUS_COLORS: Record<string, string> = {
 
 async function fetchIssues(status?: string) {
   const p = status ? `?status=${status}` : "";
-  const r = await fetch(`/api/pharmacy/staff-issues${p}`);
+  const r = await fetch(`/api/pharmacy/staff-issues${p}`, { credentials: "include" });
   if (!r.ok) throw new Error("Failed");
-  return r.json();
+  const data = await r.json();
+  return Array.isArray(data) ? data : [];
 }
 async function fetchMedicines() {
-  const r = await fetch("/api/pharmacy/medicines?limit=500");
+  const r = await fetch("/api/pharmacy/medicines?limit=500", { credentials: "include" });
   if (!r.ok) return [];
-  return r.json();
+  const data = await r.json();
+  return Array.isArray(data) ? data : [];
 }
 
 const DEPTS = ["Emergency", "ICU", "OT", "CSSD", "Nursing Station", "Physiotherapy", "Radiology", "Lab", "Canteen", "Admin", "Other"];
 
 export default function StaffIssuePage() {
   const qc = useQueryClient();
-  const [filterStatus, setFilterStatus] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ recipientName: "", recipientType: "staff", department: "", purpose: "", notes: "", items: [{ medicineId: "", medicineName: "", quantity: 1, rate: "", amount: "0" }] });
 
-  const { data: issues = [], isLoading } = useQuery({ queryKey: ["staff-issues", filterStatus], queryFn: () => fetchIssues(filterStatus || undefined) });
+  const { data: issues = [], isLoading } = useQuery({ queryKey: ["staff-issues", filterStatus], queryFn: () => fetchIssues(filterStatus !== "all" ? filterStatus : undefined) });
   const { data: medicines = [] } = useQuery({ queryKey: ["medicines-list"], queryFn: fetchMedicines });
+  const safeIssues = Array.isArray(issues) ? issues : [];
+  const safeMedicines = Array.isArray(medicines) ? medicines : [];
 
   const addIssue = useMutation({
-    mutationFn: async (d: any) => { const r = await fetch("/api/pharmacy/staff-issues", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) }); if (!r.ok) throw new Error("Failed"); return r.json(); },
+    mutationFn: async (d: any) => { const r = await fetch("/api/pharmacy/staff-issues", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(d) }); if (!r.ok) throw new Error("Failed"); return r.json(); },
     onSuccess: () => { toast.success("Issue request submitted"); qc.invalidateQueries({ queryKey: ["staff-issues"] }); setShowAdd(false); setForm({ recipientName: "", recipientType: "staff", department: "", purpose: "", notes: "", items: [{ medicineId: "", medicineName: "", quantity: 1, rate: "", amount: "0" }] }); },
     onError: () => toast.error("Failed"),
   });
 
   const approveIssue = useMutation({
-    mutationFn: async (id: number) => { const r = await fetch(`/api/pharmacy/staff-issues/${id}/approve`, { method: "PUT" }); if (!r.ok) { const j = await r.json(); throw new Error(j.error); } return r.json(); },
+    mutationFn: async (id: number) => { const r = await fetch(`/api/pharmacy/staff-issues/${id}/approve`, { method: "PUT", credentials: "include" }); if (!r.ok) { const j = await r.json(); throw new Error(j.error); } return r.json(); },
     onSuccess: () => { toast.success("Issued — stock decremented"); qc.invalidateQueries({ queryKey: ["staff-issues"] }); },
     onError: (e: any) => toast.error(e.message),
   });
@@ -57,7 +61,7 @@ export default function StaffIssuePage() {
       const items = [...f.items];
       items[idx] = { ...items[idx], [field]: value };
       if (field === "medicineId") {
-        const m = (medicines as any[]).find((x: any) => String(x.id) === value);
+        const m = safeMedicines.find((x: any) => String(x.id) === value);
         if (m) { items[idx].medicineName = m.name; items[idx].rate = String(m.saleRate ?? 0); }
       }
       if (["quantity", "rate"].includes(field)) {
@@ -80,7 +84,7 @@ export default function StaffIssuePage() {
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="w-40"><SelectValue placeholder="All statuses" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All</SelectItem>
+            <SelectItem value="all">All</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="issued">Issued</SelectItem>
           </SelectContent>
@@ -104,8 +108,8 @@ export default function StaffIssuePage() {
             </TableHeader>
             <TableBody>
               {isLoading ? <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
-                : (issues as any[]).length === 0 ? <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No staff issues yet</TableCell></TableRow>
-                : (issues as any[]).map((iss: any) => (
+                : safeIssues.length === 0 ? <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No staff issues yet</TableCell></TableRow>
+                : safeIssues.map((iss: any) => (
                   <TableRow key={iss.id}>
                     <TableCell className="font-mono text-xs">{iss.issueNo}</TableCell>
                     <TableCell className="font-medium">{iss.recipientName}</TableCell>
@@ -155,7 +159,7 @@ export default function StaffIssuePage() {
                   <div className="col-span-4">
                     <Select value={line.medicineId} onValueChange={v => updateLine(idx, "medicineId", v)}>
                       <SelectTrigger className="h-8"><SelectValue placeholder="Medicine" /></SelectTrigger>
-                      <SelectContent className="max-h-48">{(medicines as any[]).map((m: any) => <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>)}</SelectContent>
+                      <SelectContent className="max-h-48">{safeMedicines.map((m: any) => <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                   <div className="col-span-2"><Input className="h-8" type="number" min={1} value={line.quantity} onChange={e => updateLine(idx, "quantity", parseFloat(e.target.value) || 1)} placeholder="Qty" /></div>

@@ -27,26 +27,28 @@ async function fetchQueue(status?: string, priority?: string) {
   const params = new URLSearchParams();
   if (status) params.set("status", status);
   if (priority) params.set("priority", priority);
-  const r = await fetch(`/api/pharmacy/prescription-queue?${params}`);
+  const r = await fetch(`/api/pharmacy/prescription-queue?${params}`, { credentials: "include" });
   if (!r.ok) throw new Error("Failed");
-  return r.json();
+  const data = await r.json();
+  return Array.isArray(data) ? data : [];
 }
 
 export default function PrescriptionQueuePage() {
   const qc = useQueryClient();
   const [filterStatus, setFilterStatus] = useState("pending");
-  const [filterPriority, setFilterPriority] = useState("");
+  const [filterPriority, setFilterPriority] = useState("all");
   const [search, setSearch] = useState("");
 
   const { data: queue = [], isLoading, refetch } = useQuery({
     queryKey: ["prescription-queue", filterStatus, filterPriority],
-    queryFn: () => fetchQueue(filterStatus || undefined, filterPriority || undefined),
+    queryFn: () => fetchQueue(filterStatus || undefined, filterPriority !== "all" ? filterPriority : undefined),
     refetchInterval: 30000,
   });
+  const safeQueue = Array.isArray(queue) ? queue : [];
 
   const dispenseMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: string }) => {
-      const r = await fetch(`/api/pharmacy/prescription-queue/${id}/dispense`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
+      const r = await fetch(`/api/pharmacy/prescription-queue/${id}/dispense`, { method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ status }) });
       if (!r.ok) throw new Error("Failed");
       return r.json();
     },
@@ -54,11 +56,11 @@ export default function PrescriptionQueuePage() {
     onError: () => toast.error("Failed to update queue"),
   });
 
-  const filtered = (queue as any[]).filter((q: any) =>
+  const filtered = safeQueue.filter((q: any) =>
     !search || q.patientName?.toLowerCase().includes(search.toLowerCase()) || q.queueNo?.includes(search)
   );
 
-  const counts = { pending: (queue as any[]).filter((q: any) => q.status === "pending").length, urgent: (queue as any[]).filter((q: any) => q.priority !== "normal").length };
+  const counts = { pending: safeQueue.filter((q: any) => q.status === "pending").length, urgent: safeQueue.filter((q: any) => q.priority !== "normal").length };
 
   return (
     <div className="space-y-6">
@@ -90,14 +92,14 @@ export default function PrescriptionQueuePage() {
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="w-36"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All</SelectItem>
+            <SelectItem value="all">All</SelectItem>
             {["pending", "dispensing", "partial", "completed", "cancelled"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterPriority} onValueChange={setFilterPriority}>
           <SelectTrigger className="w-32"><SelectValue placeholder="Priority" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All</SelectItem>
+            <SelectItem value="all">All</SelectItem>
             {Object.entries(PRIORITY_META).map(([v, m]) => <SelectItem key={v} value={v}>{m.label}</SelectItem>)}
           </SelectContent>
         </Select>
