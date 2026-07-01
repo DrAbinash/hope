@@ -23,6 +23,8 @@ import { toast } from "sonner";
 import {
   TestTube, Microscope, Plus, FileText, CheckCircle2, Receipt, Search, Trash2,
 } from "lucide-react";
+import { DocumentIntegration } from "@/components/document-integration";
+import { DocumentUpload } from "@/components/document-upload";
 
 interface OrderItem {
   billingHeadId?: number;
@@ -276,10 +278,14 @@ export default function DiagnosticsPage() {
         <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Revenue</p><p className="text-2xl font-bold">₹{stats.revenue.toLocaleString("en-IN")}</p></CardContent></Card>
       </div>
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as "pathology" | "radiology")}>
+      <Tabs value={tab} onValueChange={(v) => {
+        if (v === "documents") setTab(tab);
+        else setTab(v as "pathology" | "radiology");
+      }}>
         <TabsList>
           <TabsTrigger value="pathology"><TestTube className="w-4 h-4 mr-2" />Pathology</TabsTrigger>
           <TabsTrigger value="radiology"><Microscope className="w-4 h-4 mr-2" />Radiology</TabsTrigger>
+          <TabsTrigger value="documents"><FileText className="w-4 h-4 mr-2" />Documents</TabsTrigger>
         </TabsList>
         <TabsContent value={tab} className="mt-4">
           <Card>
@@ -329,6 +335,41 @@ export default function DiagnosticsPage() {
                   ))}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="documents" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Upload Lab & Radiology Reports
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="bg-green-50 dark:bg-green-950/20 p-3 rounded-lg border border-green-200">
+                <p className="text-xs text-muted-foreground mb-3">
+                  Upload pathology and radiology reports, test results, images, and related documents. All documents are organized by test type and patient.
+                </p>
+                <DocumentUpload
+                  category="Lab Report"
+                  patientId={0}
+                  module="Diagnostics"
+                  department="Pathology & Radiology"
+                  description="Diagnostic report or test result"
+                  tags={["lab-report", "diagnostic"]}
+                  multiple={true}
+                />
+              </div>
+
+              <DocumentIntegration
+                patientId={0}
+                module="Diagnostics"
+                title="All Diagnostic Reports"
+                showUpload={false}
+                maxDocuments={50}
+              />
             </CardContent>
           </Card>
         </TabsContent>

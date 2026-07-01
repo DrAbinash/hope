@@ -7,6 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DocumentIntegration } from "@/components/document-integration";
+import { DocumentUpload } from "@/components/document-upload";
 import {
   User,
   Phone,
@@ -336,11 +338,12 @@ export default function PatientProfilePage() {
         {/* Right Column: Tabbed Visit Histories */}
         <div className="md:col-span-2">
           <Tabs defaultValue="ai-memory" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 bg-muted rounded-xl">
+            <TabsList className="grid w-full grid-cols-5 bg-muted rounded-xl">
               <TabsTrigger value="ai-memory" className="rounded-lg">🧠 AI Memory Layer</TabsTrigger>
               <TabsTrigger value="opd" className="rounded-lg">OPD Visits ({opdVisits.length})</TabsTrigger>
               <TabsTrigger value="ipd" className="rounded-lg">IPD Admissions ({ipdAdmissions.length})</TabsTrigger>
               <TabsTrigger value="billing" className="rounded-lg">Billing ({invoices.length})</TabsTrigger>
+              <TabsTrigger value="documents" className="rounded-lg">📄 Documents</TabsTrigger>
             </TabsList>
 
             {/* AI Memory Layer Content */}
@@ -808,6 +811,42 @@ export default function PatientProfilePage() {
                   </CardContent>
                 </Card>
               )}
+            </TabsContent>
+
+            {/* Patient Documents */}
+            <TabsContent value="documents" className="mt-4 space-y-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    Upload Patient Documents
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="bg-cyan-50 dark:bg-cyan-950/20 p-3 rounded-lg border border-cyan-200">
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Upload identity proofs, insurance documents, medical history, reports, or any other relevant patient documents.
+                    </p>
+                    <DocumentUpload
+                      category="Patient Document"
+                      patientId={patientId || 0}
+                      module="Registration"
+                      department="Patient Records"
+                      description="Patient identity, insurance, or medical document"
+                      tags={["patient-document", "registration"]}
+                      multiple={true}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <DocumentIntegration
+                patientId={patientId || 0}
+                module="Registration"
+                title="All Patient Documents"
+                showUpload={false}
+                maxDocuments={30}
+              />
             </TabsContent>
           </Tabs>
         </div>

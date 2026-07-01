@@ -21,6 +21,8 @@ import { VoiceDictate } from "@/components/voice-dictate";
 import { DrugInteractionAlerts } from "@/components/drug-interaction-alerts";
 import { useDebouncedAutosave } from "@/hooks/use-autosave";
 import { useAuth } from "@/lib/auth";
+import { DocumentIntegration } from "@/components/document-integration";
+import { DocumentUpload } from "@/components/document-upload";
 
 interface RxItem {
   medicineId?: number;
@@ -1116,6 +1118,41 @@ export default function OPDDetail() {
           </div>
         </CardContent>
       </Card>
+
+      {visit && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Consultation Documents
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="bg-blue-50 dark:bg-blue-950/20 p-3 rounded-lg border border-blue-200">
+              <p className="text-xs text-muted-foreground mb-3">
+                Upload prescription copies, test reports, clinical photographs, and other consultation-related documents.
+              </p>
+              <DocumentUpload
+                category="Prescription"
+                patientId={visit.patientId}
+                module="OPD"
+                department="Consultation"
+                description="OPD consultation document or prescription"
+                tags={["opd", "consultation", `visit-${visit.visitNo}`]}
+                multiple={true}
+              />
+            </div>
+
+            <DocumentIntegration
+              patientId={visit.patientId}
+              module="OPD"
+              title="Consultation Documents"
+              showUpload={false}
+              maxDocuments={15}
+            />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

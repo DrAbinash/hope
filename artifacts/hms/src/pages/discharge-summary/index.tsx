@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,8 @@ import { useAuth } from "@/lib/auth";
 import {
   ClipboardList, Plus, Printer, Trash2, FileCheck2, FileText, Lock, Sparkles, ShieldAlert, ListTodo, Info, Clock,
 } from "lucide-react";
+import { DocumentIntegration } from "@/components/document-integration";
+import { DocumentUpload } from "@/components/document-upload";
 
 interface Med { name: string; dose: string; frequency: string; duration: string; instructions?: string }
 interface Investigation { name: string; result: string; date?: string }
@@ -452,6 +454,39 @@ export default function DischargeSummaryPage() {
               ))}
             </TableBody>
           </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            Discharge Summary Documents
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="bg-indigo-50 dark:bg-indigo-950/20 p-3 rounded-lg border border-indigo-200">
+            <p className="text-xs text-muted-foreground mb-3">
+              Upload discharge certificates, prescriptions, follow-up instructions, and related discharge documents.
+            </p>
+            <DocumentUpload
+              category="Discharge Summary"
+              patientId={0}
+              module="IPD"
+              department="Discharge"
+              description="Discharge certificate or summary document"
+              tags={["discharge", "discharge-summary"]}
+              multiple={true}
+            />
+          </div>
+
+          <DocumentIntegration
+            patientId={0}
+            module="IPD"
+            title="Discharge Documents"
+            showUpload={false}
+            maxDocuments={25}
+          />
         </CardContent>
       </Card>
 
